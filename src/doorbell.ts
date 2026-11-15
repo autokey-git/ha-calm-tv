@@ -131,6 +131,6 @@ export function startDoorbellOnly(): void {
 declare global {
   interface Window {
     /** Only in the TV's doorbell overlay window. */
-    CalmTvDoorbell?: { close(): void };
+    CalmTvDoorbell?: { close(): void; getHaUrl?(): string; loadConfig?(): string };
   }
 }

@@ -102,12 +102,22 @@ class DoorbellOverlay(private val service: AccessibilityService, private val onC
         onClosed()
     }
 
-    /** Exposed to the doorbell page as `window.CalmTvDoorbell`. */
+    /**
+     * Exposed to the doorbell page as `window.CalmTvDoorbell`. It also hands over Home Assistant's
+     * address and calm-tv.json, which the page can't get any other way here (no CalmTvNative in
+     * this window, and the address lives in the app's own preferences, not the page's storage).
+     */
     inner class Bridge {
         @JavascriptInterface
         fun close() {
             handler.post { this@DoorbellOverlay.close() }
         }
+
+        @JavascriptInterface
+        fun getHaUrl(): String = Prefs.haUrl(service)
+
+        @JavascriptInterface
+        fun loadConfig(): String = ConfigFile.load(service, Prefs.haUrl(service)).toString()
     }
 
     companion object {
