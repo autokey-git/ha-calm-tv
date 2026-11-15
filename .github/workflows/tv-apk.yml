@@ -36,6 +36,8 @@ jobs:
       - name: Build
         run: |
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          # gradle.properties points Gradle at a Mac's JDK; use the runner's instead.
+          sed -i '/^org.gradle.java.home/d' android/gradle.properties
           npm run tv:apk
           cp android/app/build/outputs/apk/debug/app-debug.apk calm-tv-debug.apk
 
