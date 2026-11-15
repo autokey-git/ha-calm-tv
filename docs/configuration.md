@@ -115,6 +115,21 @@ on, **even over other apps**. You need an automation that turns the input_boolea
 rings; see [home-assistant.md](home-assistant.md). Google TV already shows its own alert for Nest
 doorbells, so this is off by default.
 
+Three optional extras change how it appears:
+
+```json
+{ "window": true, "camera": "camera.front_door", "ringing": "input_boolean.doorbell_ringing",
+  "size": 75, "position": "center", "pause": true }
+```
+
+- `size`: the window's width as a percentage of the screen, 20 to 100. Default `34`, about a third.
+- `position`: `"corner"` (top right, the default) or `"center"`.
+- `pause`: `true` pauses whatever another app is playing when the doorbell rings, like pressing the
+  remote's pause button. It doesn't restart it; press play when you're done. Default `false`.
+
+While the window is over another app, **Back** closes it (and doesn't reach the app underneath).
+It also closes by itself when `ringing` turns off.
+
 ### `rooms`: the Smart Home bar, in order
 
 ```jsonc

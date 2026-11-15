@@ -89,6 +89,17 @@ Calm TV watches an `input_boolean` that is on while someone is at the door:
 
 Google TV already pops up its own alert for Nest doorbells; you may prefer to keep only one.
 
+**Reolink doorbells** have a **visitor** binary sensor that turns on when the button is pressed
+(for example `binary_sensor.front_door_visitor`). Use it as the trigger instead:
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door_visitor
+    from: "off"
+    to: "on"
+```
+
 ## 6. Maintenance notes (optional)
 
 A room's `maintenance` sensor is any sensor whose state is a short note, or empty/`unknown` when

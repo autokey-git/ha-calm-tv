@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Bigger doorbell window, and pause:** `"size"` (width in % of the screen), `"position": "center"`
+  and `"pause": true` under `doorbell` in calm-tv.json. Over another app, Back now closes the
+  doorbell window. Reolink doorbell example in docs/home-assistant.md.
 - **Live demo:** [neocarlos.github.io/ha-calm-tv](https://neocarlos.github.io/ha-calm-tv/), built from
   the repo by a GitHub Pages workflow (`npm run build:site`): always in demo mode, with the background
   videos re-encoded about 60% smaller for the web.

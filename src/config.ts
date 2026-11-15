@@ -66,8 +66,21 @@ const ConfigSchema = v.object({
   weather: v.optional(EntityId),
   /** Calendar entities: `events` fill the Calendar bar; `meals` (optional) gives "Dinner · …" from today's all-day event. */
   calendar: v.optional(v.object({ events: v.optional(EntityId), meals: v.optional(EntityId) })),
-  /** Doorbell video window (off unless `window` is true): its camera, and an input_boolean that is on while it rings. */
-  doorbell: v.optional(v.object({ window: v.optional(v.boolean()), camera: v.optional(EntityId), ringing: v.optional(EntityId) })),
+  /**
+   * Doorbell video window (off unless `window` is true): its camera, and an input_boolean that is on while it rings.
+   * `size` is the window's width as a percentage of the screen (default 34), `position` is "corner" (top right,
+   * the default) or "center", and `pause` pauses whatever is playing in another app when it rings.
+   */
+  doorbell: v.optional(
+    v.object({
+      window: v.optional(v.boolean()),
+      camera: v.optional(EntityId),
+      ringing: v.optional(EntityId),
+      size: v.optional(v.pipe(v.number('should be a number, e.g. 75'), v.minValue(20), v.maxValue(100))),
+      position: v.optional(v.picklist(['corner', 'center'], 'should be "corner" or "center"')),
+      pause: v.optional(v.boolean()),
+    }),
+  ),
   /**
    * The screens to show, in order, e.g. ["apps", "smarthome", "weather"] for no Calendar. Apps is
    * always shown, and first (it holds Settings). Default: all four.

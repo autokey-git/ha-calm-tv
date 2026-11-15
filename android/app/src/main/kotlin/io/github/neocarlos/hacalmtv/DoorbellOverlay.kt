@@ -30,7 +30,7 @@ class DoorbellOverlay(private val service: AccessibilityService, private val onC
     private var web: WebView? = null
 
     @SuppressLint("SetJavaScriptEnabled")
-    fun show(pageUrl: String) {
+    fun show(pageUrl: String, look: DoorbellLook) {
         if (web != null) return
         val start = Uri.parse(pageUrl)
         val assets = WebViewAssetLoader.Builder()
@@ -56,10 +56,11 @@ class DoorbellOverlay(private val service: AccessibilityService, private val onC
             }
         }
 
-        // About a third of the screen wide, 16:9, in the top-right corner (clear of app docks and player controls).
+        // 16:9, look.size % of the screen wide (a third by default). In the top-right corner, clear of
+        // app docks and player controls, or centred.
         val screen = service.resources.displayMetrics
-        val width = (screen.widthPixels * 0.34).toInt()
-        val margin = (screen.widthPixels * 0.03).toInt()
+        val width = (screen.widthPixels * look.size / 100f).toInt()
+        val margin = if (look.center) 0 else (screen.widthPixels * 0.03).toInt()
         val params = WindowManager.LayoutParams(
             width,
             width * 9 / 16,
@@ -68,7 +69,7 @@ class DoorbellOverlay(private val service: AccessibilityService, private val onC
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         ).apply {
-            gravity = Gravity.TOP or Gravity.END
+            gravity = if (look.center) Gravity.CENTER else Gravity.TOP or Gravity.END
             x = margin
             y = margin
         }

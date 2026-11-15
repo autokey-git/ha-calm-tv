@@ -15,6 +15,8 @@ interface CalmTvNative {
   isInFront?(): boolean;
   /** Shows the doorbell video in a small window over the current app; false if it can't. */
   showDoorbell?(): boolean;
+  /** The same, sized and placed by JSON { size, center, pause } (see DoorbellLook); newer TV apps only. */
+  showDoorbellWith?(look: string): boolean;
   /** Home Assistant's address saved on the TV, or "". */
   getHaUrl?(): string;
   /** Saves Home Assistant's address; returns the cleaned-up address, or "" if invalid. */

@@ -13,6 +13,22 @@ export const doorbellRinging = () => settings.config.doorbell?.ringing ?? '';
 /** True when calm-tv.json turns the doorbell window on and names its camera and switch. */
 export const doorbellEnabled = () => !!(settings.config.doorbell?.window && doorbellCamera() && doorbellRinging());
 
+/** How the window looks: width in % of the screen, centred or in the corner, and whether to pause other apps. */
+export interface DoorbellLook {
+  size: number;
+  center: boolean;
+  pause: boolean;
+}
+
+export function doorbellLook(): DoorbellLook {
+  const d = settings.config.doorbell;
+
+  return { size: d?.size ?? 34, center: d?.position === 'center', pause: !!d?.pause };
+}
+
+/** On the fixed 1920-wide stage. */
+const STAGE_WIDTH = 1920;
+
 /** The corner video window. Used inside Calm TV, and alone in the TV's over-other-apps overlay. */
 export class DoorbellWindow {
   readonly el: HTMLElement;
@@ -42,6 +58,7 @@ export class DoorbellWindow {
   show(): void {
     if (this.shown) return;
     this.shown = true;
+    this.applyLook();
     this.msg.textContent = 'Connecting…';
     this.msg.hidden = false;
     this.el.classList.add('open');
@@ -59,6 +76,16 @@ export class DoorbellWindow {
       .then((s) => { if (this.shown) this.stream = s; else s.stop(); })
       .catch(() => fail('Someone rang · camera didn’t start'));
     this.slowTimer = window.setTimeout(() => fail('Someone rang · video is still connecting'), 10000);
+  }
+
+  /** Size and place from calm-tv.json. The over-other-apps window is sized by Android instead. */
+  private applyLook(): void {
+    if (document.documentElement.classList.contains('dbell-only')) return;
+    const look = doorbellLook();
+    const width = Math.round((STAGE_WIDTH * look.size) / 100);
+    this.el.style.width = `${width}px`;
+    this.el.style.setProperty('--u', `${width / 100}px`);
+    this.el.classList.toggle('center', look.center);
   }
 
   hide(): void {
@@ -79,7 +106,8 @@ export class DoorbellWindow {
  */
 export function startDoorbellOnly(): void {
   document.documentElement.classList.add('dbell-only');
-  const win = new DoorbellWindow(document.body);
+  // Back closes it: the Home button service catches Back while this window is up.
+  const win = new DoorbellWindow(document.body, 'Back to close');
 
   const close = () => {
     win.hide();

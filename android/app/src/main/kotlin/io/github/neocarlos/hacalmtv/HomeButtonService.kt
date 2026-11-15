@@ -2,6 +2,7 @@ package io.github.neocarlos.hacalmtv
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -32,13 +33,22 @@ class HomeButtonService : AccessibilityService() {
     }
 
     /** Doorbell video over the current app (see DoorbellOverlay). Safe to call from any thread. */
-    fun showDoorbell() {
+    fun showDoorbell(look: DoorbellLook) {
         Handler(Looper.getMainLooper()).post {
             if (doorbell != null) return@post
+            if (look.pause) pausePlayback()
             val overlay = DoorbellOverlay(this) { doorbell = null }
             doorbell = overlay
-            overlay.show(MainActivity.pageUrl ?: MainActivity.BUNDLED_URL)
+            overlay.show(MainActivity.pageUrl ?: MainActivity.BUNDLED_URL, look)
         }
+    }
+
+    /** Pauses whatever app is playing (Netflix, YouTube...) the same way a remote's pause button does. */
+    private fun pausePlayback() {
+        val audio = getSystemService(AudioManager::class.java)
+        audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE))
+        audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE))
+        Log.i(TAG, "Paused playback for the doorbell")
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
@@ -49,6 +59,12 @@ class HomeButtonService : AccessibilityService() {
                 "${KeyEvent.keyCodeToString(event.keyCode)} action=${event.action} scan=${event.scanCode} " +
                     "device=${event.device?.name}"
             )
+        }
+        // While the doorbell window is up, Back closes it instead of reaching the app underneath.
+        val bell = doorbell
+        if (bell != null && event.keyCode == KeyEvent.KEYCODE_BACK) {
+            if (event.action == KeyEvent.ACTION_UP) bell.close()
+            return true
         }
         if (event.keyCode == KeyEvent.KEYCODE_HOME && !Prefs.usingGoogleHome(this)) {
             if (event.action == KeyEvent.ACTION_UP) showCalmTv("home key")

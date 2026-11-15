@@ -18,7 +18,7 @@ import { attributes, forecastEntries, WeatherAttributes, type ForecastEntry, typ
 import { child, find, itemAt } from './dom';
 import { applyStates, WEATHER } from './home-data';
 import { conditionLabel } from './sections/weather-section';
-import { DoorbellWindow, doorbellEnabled, doorbellRinging } from './doorbell';
+import { DoorbellWindow, doorbellEnabled, doorbellLook, doorbellRinging } from './doorbell';
 import { screenOrder, type ScreenName } from './config';
 
 
@@ -156,7 +156,13 @@ export class CalmTv {
 
   /** Someone rang: video in Calm TV's corner, or over whatever app is on screen. */
   private ring(): void {
-    if (native?.isInFront && !native.isInFront() && native.showDoorbell?.()) return;
+    if (native?.isInFront && !native.isInFront()) {
+      const shown = native.showDoorbellWith
+        ? native.showDoorbellWith(JSON.stringify(doorbellLook()))
+        : native.showDoorbell?.();
+
+      if (shown) return;
+    }
     this.doorbell.show();
   }
 

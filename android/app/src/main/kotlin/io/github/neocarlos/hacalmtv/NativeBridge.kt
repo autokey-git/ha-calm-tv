@@ -77,7 +77,18 @@ class NativeBridge(private val activity: Activity) {
     @JavascriptInterface
     fun showDoorbell(): Boolean {
         val service = HomeButtonService.instance ?: return false
-        service.showDoorbell()
+        service.showDoorbell(DoorbellLook())
+        return true
+    }
+
+    /**
+     * The same, sized and placed by calm-tv.json: JSON { "size": 75, "center": true, "pause": true }.
+     * Bad or missing values fall back to the corner window.
+     */
+    @JavascriptInterface
+    fun showDoorbellWith(look: String): Boolean {
+        val service = HomeButtonService.instance ?: return false
+        service.showDoorbell(DoorbellLook.parse(look))
         return true
     }
 
