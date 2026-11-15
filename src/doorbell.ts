@@ -1,6 +1,6 @@
 import { ha } from './ha';
 import { playCamera, type CameraStream } from './camera-stream';
-import { settings } from './config';
+import { haPath, settings } from './config';
 import { child, find } from './dom';
 
 // When the doorbell rings, a small live video window appears in the corner, even over other apps.
@@ -33,6 +33,8 @@ const STAGE_WIDTH = 1920;
 export class DoorbellWindow {
   readonly el: HTMLElement;
   private video: HTMLVideoElement;
+  private still: HTMLImageElement;
+  private stillTimer = 0;
   private msg: HTMLElement;
   private stream: CameraStream | null = null;
   private slowTimer = 0;
@@ -42,11 +44,15 @@ export class DoorbellWindow {
     this.el = document.createElement('div');
     this.el.className = 'dbell';
     this.el.innerHTML = `
+      <img class="dbell-still" alt="">
       <video muted autoplay playsinline></video>
       <div class="dbell-msg">Connecting…</div>
       <div class="dbell-tag"><span class="dot"></span>Front door</div>
       ${hint ? `<div class="dbell-hint">${hint}</div>` : ''}`;
     this.video = find(this.el, 'video', HTMLVideoElement);
+    this.still = find(this.el, 'img', HTMLImageElement);
+    // Entities can arrive after the window opens (overlay mode connects from scratch).
+    ha.onEntities(() => { if (this.shown && !this.still.src) this.startStill(); });
     this.msg = child(this.el, '.dbell-msg');
     mount.appendChild(this.el);
   }
@@ -62,8 +68,18 @@ export class DoorbellWindow {
     this.msg.textContent = 'Connecting…';
     this.msg.hidden = false;
     this.el.classList.add('open');
-    this.video.addEventListener('playing', () => { this.msg.hidden = true; }, { once: true });
-    const fail = (m: string) => { if (this.shown) { this.msg.hidden = false; this.msg.textContent = m; } };
+    this.video.addEventListener('playing', () => {
+      this.msg.hidden = true;
+      this.el.classList.add('live');
+    }, { once: true });
+    this.startStill();
+    // Live video trouble only matters when there's no picture at all.
+    const fail = (m: string) => {
+      if (this.shown && !this.el.classList.contains('has-still')) {
+        this.msg.hidden = false;
+        this.msg.textContent = m;
+      }
+    };
     const conn = ha.connection;
 
     if (!conn) {
@@ -88,9 +104,33 @@ export class DoorbellWindow {
     this.el.classList.toggle('center', look.center);
   }
 
+  /**
+   * A picture straight away: HA's camera proxy stream (MJPEG, or snapshots one after another for
+   * cameras without it). It needs no WebRTC set-up, so it shows within a second or so, and stays
+   * up if live video never connects (e.g. a camera whose WebRTC is slow or unsupported).
+   */
+  private startStill(): void {
+    const token = ha.entities[doorbellCamera()]?.attributes.access_token;
+
+    if (typeof token !== 'string' || !settings.haUrl) return;
+    this.still.src = haPath(`/api/camera_proxy_stream/${doorbellCamera()}?token=${encodeURIComponent(token)}`);
+    // A stream's first frame doesn't always fire "load"; check for a picture instead.
+    this.stillTimer = window.setInterval(() => {
+      if (this.still.naturalWidth > 0) {
+        clearInterval(this.stillTimer);
+        this.el.classList.add('has-still');
+
+        if (!this.el.classList.contains('live')) this.msg.hidden = true;
+      }
+    }, 150);
+  }
+
   hide(): void {
     if (!this.shown) return;
     this.shown = false;
+    clearInterval(this.stillTimer);
+    this.still.removeAttribute('src');
+    this.el.classList.remove('has-still', 'live');
     clearTimeout(this.slowTimer);
     this.stream?.stop();
     this.stream = null;

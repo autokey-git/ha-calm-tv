@@ -296,6 +296,10 @@ html.glass-tint .gb-veil { background: rgba(8, 14, 18, 0.5); }
 /* "position": "center" in calm-tv.json. `translate` is separate from the open/close `transform`. */
 .dbell.center { right: auto; left: 50%; top: 50%; translate: -50% -50%; z-index: 80; }
 .dbell video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* The quick picture under the live video; hidden once live video plays. */
+.dbell-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
+.dbell.has-still .dbell-still { opacity: 1; }
+.dbell.live .dbell-still { display: none; }
 .dbell-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 calc(var(--u) * 8); font-size: calc(var(--u) * 3.6); color: var(--ink-dim, #c9ced6); }
 .dbell-msg[hidden] { display: none; }
 .dbell-tag { position: absolute; left: calc(var(--u) * 3.4); top: calc(var(--u) * 3); display: flex; align-items: center; gap: calc(var(--u) * 1.4); padding: calc(var(--u) * 1) calc(var(--u) * 2.2); border-radius: 999px; background: rgba(0, 0, 0, 0.55); font-size: calc(var(--u) * 3.3); font-weight: 600; color: #fff; }
