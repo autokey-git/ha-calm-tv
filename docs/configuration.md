@@ -119,13 +119,20 @@ Three optional extras change how it appears:
 
 ```json
 { "window": true, "camera": "camera.front_door", "ringing": "input_boolean.doorbell_ringing",
-  "size": 75, "position": "center", "pause": true }
+  "size": 75, "position": "center", "pause": true, "sound": true }
 ```
 
 - `size`: the window's width as a percentage of the screen, 20 to 100. Default `34`, about a third.
 - `position`: `"corner"` (top right, the default) or `"center"`.
 - `pause`: `true` pauses whatever another app is playing when the doorbell rings, like pressing the
   remote's pause button. It doesn't restart it; press play when you're done. Default `false`.
+- `sound`: `true` plays the camera's audio once live video starts. Default `false` (silent).
+  Cameras whose audio isn't WebRTC-friendly (e.g. AAC) stay silent unless Home Assistant's go2rtc
+  converts it to Opus.
+
+The window shows a picture within a second or so from Home Assistant's camera proxy (MJPEG, or
+snapshots in a row), then switches to live WebRTC video once its first frame is drawn. If live video
+never connects, the quick picture stays.
 
 While the window is over another app, **Back** closes it (and doesn't reach the app underneath).
 It also closes by itself when `ringing` turns off.

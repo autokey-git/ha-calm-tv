@@ -18,12 +18,13 @@ export interface DoorbellLook {
   size: number;
   center: boolean;
   pause: boolean;
+  sound: boolean;
 }
 
 export function doorbellLook(): DoorbellLook {
   const d = settings.config.doorbell;
 
-  return { size: d?.size ?? 34, center: d?.position === 'center', pause: !!d?.pause };
+  return { size: d?.size ?? 34, center: d?.position === 'center', pause: !!d?.pause, sound: !!d?.sound };
 }
 
 /** On the fixed 1920-wide stage. */
@@ -68,10 +69,19 @@ export class DoorbellWindow {
     this.msg.textContent = 'Connecting…';
     this.msg.hidden = false;
     this.el.classList.add('open');
-    this.video.addEventListener('playing', () => {
+    // Live only once a frame is really drawn: "playing" can fire before any picture shows, and the
+    // quick picture underneath should stay until then.
+    const live = () => {
+      if (!this.shown) return;
       this.msg.hidden = true;
       this.el.classList.add('live');
-    }, { once: true });
+      this.video.muted = !doorbellLook().sound;
+      if (!this.video.muted) this.video.play().catch(() => { this.video.muted = true; });
+    };
+    const v = this.video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number };
+
+    if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(live);
+    else this.video.addEventListener('playing', () => { if (this.video.videoWidth) live(); }, { once: true });
     this.startStill();
     // Live video trouble only matters when there's no picture at all.
     const fail = (m: string) => {
@@ -130,6 +140,7 @@ export class DoorbellWindow {
     this.shown = false;
     clearInterval(this.stillTimer);
     this.still.removeAttribute('src');
+    this.video.muted = true;
     this.el.classList.remove('has-still', 'live');
     clearTimeout(this.slowTimer);
     this.stream?.stop();

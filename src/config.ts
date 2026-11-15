@@ -69,7 +69,8 @@ const ConfigSchema = v.object({
   /**
    * Doorbell video window (off unless `window` is true): its camera, and an input_boolean that is on while it rings.
    * `size` is the window's width as a percentage of the screen (default 34), `position` is "corner" (top right,
-   * the default) or "center", and `pause` pauses whatever is playing in another app when it rings.
+   * the default) or "center", `pause` pauses whatever is playing in another app when it rings, and `sound` plays the camera's
+   * audio once live video starts.
    */
   doorbell: v.optional(
     v.object({
@@ -79,6 +80,7 @@ const ConfigSchema = v.object({
       size: v.optional(v.pipe(v.number('should be a number, e.g. 75'), v.minValue(20), v.maxValue(100))),
       position: v.optional(v.picklist(['corner', 'center'], 'should be "corner" or "center"')),
       pause: v.optional(v.boolean()),
+      sound: v.optional(v.boolean()),
     }),
   ),
   /**

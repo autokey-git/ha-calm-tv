@@ -65,8 +65,10 @@ class DoorbellOverlay(private val service: AccessibilityService, private val onC
             width,
             width * 9 / 16,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            // Hardware acceleration: without it a WebView in an added window can't draw video, so
+            // the camera "plays" but stays see-through.
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = if (look.center) Gravity.CENTER else Gravity.TOP or Gravity.END
