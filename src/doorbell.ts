@@ -27,6 +27,9 @@ export function doorbellLook(): DoorbellLook {
   return { size: d?.size ?? 34, center: d?.position === 'center', pause: !!d?.pause, sound: !!d?.sound };
 }
 
+/** True in the over-other-apps window (index.html?doorbell). */
+const overlayMode = () => document.documentElement.classList.contains('dbell-only');
+
 /** On the fixed 1920-wide stage. */
 const STAGE_WIDTH = 1920;
 
@@ -36,6 +39,9 @@ export class DoorbellWindow {
   private video: HTMLVideoElement;
   private still: HTMLImageElement;
   private stillTimer = 0;
+  /** Over other apps, live video is copied onto this canvas (see paintFrames). */
+  private canvas: HTMLCanvasElement;
+  private painting = false;
   private msg: HTMLElement;
   private stream: CameraStream | null = null;
   private slowTimer = 0;
@@ -47,11 +53,13 @@ export class DoorbellWindow {
     this.el.innerHTML = `
       <img class="dbell-still" alt="">
       <video muted autoplay playsinline></video>
+      <canvas class="dbell-canvas"></canvas>
       <div class="dbell-msg">Connecting…</div>
       <div class="dbell-tag"><span class="dot"></span>Front door</div>
       ${hint ? `<div class="dbell-hint">${hint}</div>` : ''}`;
     this.video = find(this.el, 'video', HTMLVideoElement);
     this.still = find(this.el, 'img', HTMLImageElement);
+    this.canvas = find(this.el, 'canvas', HTMLCanvasElement);
     // Entities can arrive after the window opens (overlay mode connects from scratch).
     ha.onEntities(() => { if (this.shown && !this.still.src) this.startStill(); });
     this.msg = child(this.el, '.dbell-msg');
@@ -76,6 +84,7 @@ export class DoorbellWindow {
       this.msg.hidden = true;
       this.el.classList.add('live');
       this.video.muted = !doorbellLook().sound;
+      if (overlayMode()) this.paintFrames();
       if (!this.video.muted) this.video.play().catch(() => { this.video.muted = true; });
     };
     const v = this.video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number };
@@ -106,7 +115,7 @@ export class DoorbellWindow {
 
   /** Size and place from calm-tv.json. The over-other-apps window is sized by Android instead. */
   private applyLook(): void {
-    if (document.documentElement.classList.contains('dbell-only')) return;
+    if (overlayMode()) return;
     const look = doorbellLook();
     const width = Math.round((STAGE_WIDTH * look.size) / 100);
     this.el.style.width = `${width}px`;
@@ -135,9 +144,44 @@ export class DoorbellWindow {
     }, 150);
   }
 
+  /**
+   * Over other apps, Android's WebView shows <video> by punching a hole through the window to a
+   * video layer underneath, so the app behind (Netflix...) shows through instead of the camera.
+   * There the video element stays hidden and each frame is drawn onto a canvas, which is part of
+   * the page like any picture.
+   */
+  private paintFrames(): void {
+    if (this.painting) return;
+    this.painting = true;
+    const ctx = this.canvas.getContext('2d');
+    const v = this.video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number };
+    const draw = () => {
+      if (!this.shown || !ctx) {
+        this.painting = false;
+
+        return;
+      }
+
+      const w = this.video.videoWidth;
+      const h = this.video.videoHeight;
+
+      if (w && h) {
+        if (this.canvas.width !== w) this.canvas.width = w;
+        if (this.canvas.height !== h) this.canvas.height = h;
+        ctx.drawImage(this.video, 0, 0, w, h);
+      }
+
+      if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(draw);
+      else requestAnimationFrame(draw);
+    };
+
+    draw();
+  }
+
   hide(): void {
     if (!this.shown) return;
     this.shown = false;
+    this.painting = false;
     clearInterval(this.stillTimer);
     this.still.removeAttribute('src');
     this.video.muted = true;

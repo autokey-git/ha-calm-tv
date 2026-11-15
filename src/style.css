@@ -300,6 +300,11 @@ html.glass-tint .gb-veil { background: rgba(8, 14, 18, 0.5); }
 .dbell-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
 .dbell.has-still .dbell-still { opacity: 1; }
 .dbell.live .dbell-still { display: none; }
+.dbell-canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+/* Over other apps: the canvas shows the video; the <video> itself must not be drawn (see paintFrames),
+   but stays in the page, tiny and invisible, so it keeps decoding. */
+html.dbell-only .dbell-canvas { display: block; }
+html.dbell-only .dbell video { inset: auto; left: 0; top: 0; width: 2px; height: 2px; opacity: 0; }
 .dbell-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 calc(var(--u) * 8); font-size: calc(var(--u) * 3.6); color: var(--ink-dim, #c9ced6); }
 .dbell-msg[hidden] { display: none; }
 .dbell-tag { position: absolute; left: calc(var(--u) * 3.4); top: calc(var(--u) * 3); display: flex; align-items: center; gap: calc(var(--u) * 1.4); padding: calc(var(--u) * 1) calc(var(--u) * 2.2); border-radius: 999px; background: rgba(0, 0, 0, 0.55); font-size: calc(var(--u) * 3.3); font-weight: 600; color: #fff; }
