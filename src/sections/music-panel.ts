@@ -502,10 +502,16 @@ export class MusicPanel {
     return typeof lead === 'string' && lead !== entity && this.players.some((pl) => pl.entity === lead) ? lead : undefined;
   }
 
-  /** A speaker's cover as a small square edged in the cover's colour, with bars or a link on it. */
+  /**
+   * A speaker's cover as a small square edged in the cover's colour, with bars (or, for a speaker
+   * playing along, a link) on it. A group whose leader isn't playing shows plain squares instead:
+   * the leader with the group icon, the others with the link. An idle speaker can still hold its
+   * last cover, so only a playing or paused leader's cover is shown.
+   */
   private cover(entity: string, linked: boolean): string {
     const e = ha.entities[entity];
-    const pic = typeof e?.attributes.entity_picture === 'string' ? haPath(e.attributes.entity_picture) : '';
+    const on = e?.state === 'playing' || e?.state === 'paused';
+    const pic = on && typeof e.attributes.entity_picture === 'string' ? haPath(e.attributes.entity_picture) : '';
 
     if (pic && !this.edges.has(pic)) {
       this.edges.set(pic, null);
@@ -515,9 +521,9 @@ export class MusicPanel {
       });
     }
     const edge = pic ? this.edges.get(pic) : null;
-    const mark = linked ? ICON.link : '<span class="mspk-bars"><i></i><i></i><i></i></span>';
+    const mark = linked ? ICON.link : on ? '<span class="mspk-bars"><i></i><i></i><i></i></span>' : ICON.group;
 
-    return `<span class="mspk-cover${e?.state === 'playing' ? ' moving' : ''}"${edge ? ` style="--edge: rgb(${edge})"` : ''}>${pic ? `<img src="${esc(pic)}" alt="">` : ''}<span class="mspk-over">${mark}</span></span>`;
+    return `<span class="mspk-cover${e?.state === 'playing' ? ' moving' : ''}${on ? '' : ' still'}"${edge ? ` style="--edge: rgb(${edge})"` : ''}>${pic ? `<img src="${esc(pic)}" alt="">` : ''}<span class="mspk-over">${mark}</span></span>`;
   }
 
   private group(): Set<string> {
@@ -766,7 +772,12 @@ export class MusicPanel {
           : e.state === 'playing' ? `Playing · ${typeof t === 'string' ? t : ''}` : e.state === 'paused' ? 'Paused' : 'Idle';
         // Playing (or paused) speakers show their cover; ones playing along show their leader's.
         const lead = offline || !e || e.state === 'unavailable' ? undefined : this.leaderOf(pl.entity);
-        const live = !offline && !!e && (!!lead || e.state === 'playing' || e.state === 'paused');
+        const host = lead ?? pl.entity;
+        const playing = (x: string) => ['playing', 'paused'].includes(ha.entities[x]?.state ?? '');
+        // Speakers grouped around one that isn't playing get plain squares and stay grey.
+        const leads = !offline && !lead && !!e && e.state !== 'unavailable' && this.players.some((x) => x.entity !== pl.entity && this.leaderOf(x.entity) === pl.entity);
+        const live = !offline && !!e && playing(host);
+        const marked = live || !!lead || leads;
         const cls = ['mspk', i === this.active ? 'active' : '', inGroup ? 'grouped' : '', live ? 'live' : '', this.area === 'speakers' && this.spk === i ? 'focus' : ''].join(' ');
         if (this.slider && this.area === 'speakers' && this.spk === i) {
           const v = this.volumeOf(pl.entity) ?? 0;
@@ -775,7 +786,7 @@ export class MusicPanel {
             + `<div class="mspk-slider"><div class="mspk-bar"><i style="width:${Math.round(v * 100)}%"></i></div><span class="mspk-pct">${Math.round(v * 100)}%</span></div></div></div>`;
         }
         const mark = this.grouping ? `<span class="mspk-check${i === this.active || inGroup ? ' on' : ''}">${i === this.active || inGroup ? ICON.check : ''}</span>`
-          : live ? this.cover(lead ?? pl.entity, !!lead) : '<span class="mspk-dot"></span>';
+          : marked ? this.cover(host, !!lead) : '<span class="mspk-dot"></span>';
 
         return `<div class="${cls}">${mark}<div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div><div class="mspk-status"><span>${esc(status)}</span></div></div></div>`;
       })

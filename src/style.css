@@ -551,6 +551,8 @@ html.glass-tint .music-controls, html.glass-tint .music-cats, html.glass-tint .m
 .mspk.wide .mspk-name, .mspk.top .mspk-name { color: var(--ink); }
 .mspk.wide .mspk-status, .mspk.top .mspk-status { color: var(--ink-dim); }
 .mspk-cover { position: relative; width: 44px; height: 44px; margin: 0 -7px; flex: 0 0 auto; border-radius: 10px; background: rgba(255, 255, 255, 0.12); box-shadow: 0 0 0 2.5px var(--edge, rgba(255, 255, 255, 0.5)), 0 4px 14px rgba(0, 0, 0, 0.5); transition: box-shadow 0.6s ease; }
+.mspk-cover.still { background: rgba(255, 255, 255, 0.06); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3); }
+.mspk-cover.still .mspk-over { background: none; color: rgba(255, 255, 255, 0.6); }
 .mspk-cover img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; display: block; }
 .mspk-over { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: inherit; background: rgba(0, 0, 0, 0.35); color: #fff; }
 .mspk-over svg { width: 24px; height: 24px; }
