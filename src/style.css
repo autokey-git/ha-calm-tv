@@ -601,7 +601,10 @@ html.glass-tint .music-controls, html.glass-tint .music-cats, html.glass-tint .m
 .music.grouping .music-now, .music.grouping .music-cats, .music.grouping .music-lib-h { opacity: 0.12; }
 /* The library sits at the bottom, level with the controls (top and bottom); the speakers get the room above. */
 .music-home { display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; }
-.music-home .music-lib-h { margin-top: auto; padding-top: 36px; }
+/* The speakers' sheet fills down to the progress bar's height and scrolls when there are many. */
+.music-home .music-speakers { flex: 1 1 0; min-height: 0; overflow-y: auto; align-content: start; scrollbar-width: none; scroll-padding: 12px; }
+.music-home .music-speakers::-webkit-scrollbar { display: none; }
+.music-home .music-lib-h { margin-top: auto; padding-top: 20px; }
 .music-browse { display: none; flex-direction: column; min-height: 0; flex: 1 1 0; }
 .music.browsing .music-home, .music.queue-open .music-home { display: none; }
 .music-queue { display: none; }

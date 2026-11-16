@@ -787,6 +787,8 @@ export class MusicPanel {
         return `<div class="${cls}">${mark}<div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div><div class="mspk-status"><span>${esc(status)}</span></div></div></div>`;
       })
       .join('');
+    // With many speakers the sheet scrolls: keep the focused one in view.
+    this.el.querySelector<HTMLElement>('.music-speakers .mspk.focus')?.scrollIntoView({ block: 'nearest' });
     this.marquee();
 
     this.renderProgress();
