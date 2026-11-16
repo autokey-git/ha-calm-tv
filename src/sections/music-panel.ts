@@ -787,7 +787,7 @@ export class MusicPanel {
     const box = child(this.el, '.music-cats');
 
     if (!this.cats.length) {
-      box.innerHTML = `<div class="music-lib-msg">${esc(this.catsMsg)}</div>`;
+      box.innerHTML = `<div class="music-lib-msg">${esc(this.catsMsg || 'The library shows up once a speaker is available')}</div>`;
 
       return;
     }
