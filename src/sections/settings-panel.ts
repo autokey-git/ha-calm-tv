@@ -1,5 +1,5 @@
 import { native } from '../native';
-import { ha } from '../ha';
+import { ha, lastSignedOut } from '../ha';
 import { settings } from '../config';
 import { zones } from '../home-data';
 import { showSetup } from '../setup';
@@ -134,7 +134,7 @@ export class SettingsPanel {
           icon: ICONS.ha,
           name: 'Connection',
           status: () =>
-            ha.status === 'signed-out' ? 'Not signed in · OK to sign in'
+            ha.status === 'signed-out' ? `Not signed in${lastSignedOut() ? ` (${lastSignedOut()})` : ''} · OK to sign in`
             : this.confirmSignOut ? 'Press OK again to sign out'
             : connection(),
           run: () => {
