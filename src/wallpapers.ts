@@ -1,4 +1,5 @@
 import type { Wallpaper } from './types';
+import { groupByPhase } from './variants';
 
 // Auto-discover every image dropped into src/wallpapers/.
 // Add real photos there (jpg/png/webp) and they appear automatically — no code changes needed.
@@ -30,8 +31,11 @@ const FALLBACK: Wallpaper = {
     ),
 };
 
-const found: Wallpaper[] = Object.keys(modules)
-  .sort()
-  .map((path) => ({ name: prettyName(path), url: modules[path] }));
+// "NN-name.dawn.jpg", "NN-name.night.jpg"…: one photo with a version per time of day (variants.ts).
+const found: Wallpaper[] = groupByPhase(Object.keys(modules).sort(), (path) => modules[path]).map((s) => ({
+  name: prettyName(s.key),
+  url: s.url,
+  variants: s.variants,
+}));
 
 export const wallpapers: Wallpaper[] = found.length > 0 ? found : [FALLBACK];
