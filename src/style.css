@@ -493,11 +493,11 @@ html.instant .section { transition: none !important; }
 .music { position: absolute; inset: 0; display: none; z-index: 45; overflow: hidden; background: #06080a; }
 .music.open { display: block; }
 /* The background takes its colour from the album art (--art-tint, set in music-panel.ts): a soft
-   glow from the art's side over a wash of the same colour that reaches every corner, so the glass
-   sheets stand out against it; it fades over when the song changes. */
+   glow that spreads from the art and fades out by the far corner, so the glass sheets still stand
+   out against it; it fades over when the song changes. */
 @property --art-tint-c { syntax: '<color>'; inherits: true; initial-value: rgb(40, 46, 52); }
 .music { --art-tint: 40, 46, 52; --art-tint-c: rgb(var(--art-tint)); transition: --art-tint-c 0.8s ease; }
-.music-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 90% 110% at 22% 45%, color-mix(in srgb, var(--art-tint-c) 50%, transparent), transparent 80%), linear-gradient(160deg, color-mix(in srgb, var(--art-tint-c) 34%, #06080a), color-mix(in srgb, var(--art-tint-c) 22%, #06080a)); }
+.music-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 110% 130% at 21% 30%, color-mix(in srgb, var(--art-tint-c) 55%, transparent), color-mix(in srgb, var(--art-tint-c) 22%, transparent) 55%, transparent 95%), #06080a; }
 .music-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 6, 8, 0.45), rgba(4, 6, 8, 0.7)); }
 .music-body { position: absolute; inset: 96px 110px 110px; display: flex; gap: 100px; }
 .music-now { flex: 0 0 600px; width: 600px; min-width: 0; display: flex; flex-direction: column; }
