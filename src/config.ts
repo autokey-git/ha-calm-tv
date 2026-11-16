@@ -61,7 +61,28 @@ const ConfigSchema = v.object({
    * src/icons/ (e.g. "netflix"), or your own file: "/local/calm-tv/icons/moonlight.svg" in Home
    * Assistant's www folder, or a full address.
    */
-  apps: v.optional(v.array(v.object({ name: v.string(), package: v.string(), icon: v.optional(v.string()) }))),
+  apps: v.optional(
+    v.array(
+      v.object({
+        name: v.string(),
+        /** The Android TV app to open. Or leave it out and set `open: "music"` for Calm TV's Music panel. */
+        package: v.optional(v.string()),
+        open: v.optional(v.picklist(['music'], 'should be "music"')),
+        icon: v.optional(v.string()),
+      }),
+    ),
+  ),
+  /**
+   * The Music panel (a Music tile in the dock): `players` are the speakers, as { name, entity }
+   * (default: every Music Assistant player), and `library` names the media-browser folders whose
+   * items are offered to play (default ["Playlists"]).
+   */
+  music: v.optional(
+    v.object({
+      players: v.optional(v.array(v.object({ name: v.string(), entity: EntityId }))),
+      library: v.optional(v.array(v.string())),
+    }),
+  ),
   /** Weather entity for the Weather screen and the Smart Home "Outside" line. */
   weather: v.optional(EntityId),
   /** Calendar entities: `events` fill the Calendar bar; `meals` (optional) gives "Dinner · …" from today's all-day event. */

@@ -46,6 +46,29 @@
     "camera": "camera.front_door",
     "ringing": "input_boolean.doorbell_ringing"
   },
+  "music": {
+    "players": [
+      {
+        "name": "Living room",
+        "entity": "media_player.living_room"
+      },
+      {
+        "name": "Kitchen",
+        "entity": "media_player.kitchen"
+      },
+      {
+        "name": "Office",
+        "entity": "media_player.office"
+      },
+      {
+        "name": "Bedroom",
+        "entity": "media_player.bedroom"
+      }
+    ],
+    "library": [
+      "Playlists"
+    ]
+  },
   "rooms": [
     {
       "name": "Living room",

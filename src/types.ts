@@ -5,8 +5,8 @@ export interface App {
   mark: string;
   /** Android TV package name the tile opens, e.g. com.netflix.ninja. */
   pkg?: string;
-  /** 'settings' marks Calm TV's own Settings tile (opens the settings panel, not an app). */
-  kind?: 'settings';
+  /** 'settings' and 'music' mark Calm TV's own tiles (they open its panels, not an app). */
+  kind?: 'settings' | 'music';
 }
 
 export interface Wallpaper {

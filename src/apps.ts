@@ -26,11 +26,19 @@ export let apps: App[] = [];
 
 /** Call after loadConfig(). On the TV, apps that aren't installed are hidden; in a browser, all show. */
 export function loadApps(): void {
-  const fromConfig = settings.config.apps?.map((a) => ({ name: a.name, pkg: a.package, mark: markFor(a.name, a.icon) }));
-  const list = fromConfig?.length ? fromConfig : lineup;
+  const fromConfig = settings.config.apps
+    ?.filter((a) => a.package || a.open)
+    .map((a): App => (a.open === 'music' ? { ...musicTile, name: a.name, mark: a.icon ? markFor(a.name, a.icon) : musicTile.mark } : { name: a.name, pkg: a.package, mark: markFor(a.name, a.icon) }));
+  let list = fromConfig?.length ? fromConfig : lineup;
+
+  // With "music" in calm-tv.json, the Music tile comes first unless "apps" places it.
+  if (settings.config.music && !list.some((a) => a.kind === 'music')) list = [musicTile, ...list];
   const installed = installedPackages();
   apps = [...(installed ? list.filter((a) => !a.pkg || installed.has(a.pkg)) : list), settingsTile];
 }
+
+/** Calm TV's Music panel (sections/music-panel.ts). */
+const musicTile: App = { name: 'Music', mark: icon('music'), kind: 'music' };
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 

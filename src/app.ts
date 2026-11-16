@@ -18,6 +18,7 @@ import { attributes, forecastEntries, WeatherAttributes, type ForecastEntry, typ
 import { child, find, itemAt } from './dom';
 import { applyStates, WEATHER } from './home-data';
 import { conditionLabel } from './sections/weather-section';
+import { MusicPanel } from './sections/music-panel';
 import { DoorbellWindow, doorbellEnabled, doorbellLook, doorbellRinging } from './doorbell';
 import { screenOrder, type ScreenName } from './config';
 
@@ -42,6 +43,7 @@ export class CalmTv {
   private settings!: SettingsPanel;
   private picker!: BackgroundPicker;
   private doorbell!: DoorbellWindow;
+  private music!: MusicPanel;
 
   start(): void {
     // The picker offers videos while video backgrounds are on (Settings → Performance), photos otherwise.
@@ -67,7 +69,10 @@ export class CalmTv {
     // the room panels hang off it.
     const order = screenOrder();
     const at = (name: ScreenName) => order.indexOf(name);
-    const appsSection = new AppsSection(at('apps'), (a) => (a.kind === 'settings' ? this.settings.show() : this.openLaunch(a)));
+    this.music = new MusicPanel(qs('#stage'));
+    const appsSection = new AppsSection(at('apps'), (a) =>
+      a.kind === 'settings' ? this.settings.show() : a.kind === 'music' ? this.music.show() : this.openLaunch(a),
+    );
     this.detail = new ZoneDetail(qs('#stage'), () => this.home.refresh());
     this.doorbell = new DoorbellWindow(qs('#stage'), 'Back to dismiss');
     this.home = new SmartHomeSection(at('smarthome'), (z) => this.detail.openZone(z), () => ha.signIn());
@@ -411,6 +416,12 @@ export class CalmTv {
         return;
       }
 
+      if (this.music.isOpen()) {
+        this.music.handleKey(e);
+
+        return;
+      }
+
       if (this.overlay === 'launch') {
         if (k === 'Escape' || k === 'Backspace') {
           e.preventDefault();
@@ -485,6 +496,8 @@ export class CalmTv {
     if (this.settings.isOpen()) this.settings.close();
 
     if (this.detail.isOpen()) this.detail.close();
+
+    if (this.music.isOpen()) this.music.close();
     this.closeLaunch();
 
     if (this.secIndex !== 0) {
