@@ -103,10 +103,12 @@ interface BrowseNode {
 type Area = 'controls' | 'speakers' | 'cats' | 'browse' | 'queue' | 'gear';
 /** Queue items asked of Music Assistant at a time, and at most in all. */
 const QUEUE_PAGE = 100;
+/** While grouping, the "Play everywhere" tile beside Done (top right of the speakers). */
+const EVERYWHERE = -2;
 const QUEUE_MAX = 500;
 const CAT_COLS = 3;
 /** The two rows of controls under the art: playback, then volume and grouping. */
-const CONTROL_ROWS = [['shuffle', 'prev', 'playpause', 'next', 'queue'], ['volDown', 'volUp', 'group']] as const;
+const CONTROL_ROWS = [['shuffle', 'prev', 'playpause', 'next', 'queue'], ['volDown', 'volUp']] as const;
 type Control = (typeof CONTROL_ROWS)[number][number];
 /** A folder's items drawn at most (Music Assistant can list thousands of tracks). */
 const MAX_ITEMS = 500;
@@ -196,12 +198,12 @@ export class MusicPanel {
             <div class="music-volbar"><i></i></div>
             <span class="music-vol"></span>
             <button class="mbtn" data-c="volUp"></button>
-            <button class="mbtn" data-c="group"></button>
           </div>
         </div>
         <div class="music-side">
           <div class="music-home">
             <div class="music-h music-spk-h">Speakers</div>
+            <div class="music-note"></div>
             <div class="music-speakers"></div>
             <div class="music-h music-lib-h">Library</div>
             <div class="music-cats"></div>
@@ -552,7 +554,6 @@ export class MusicPanel {
         for (const e of this.volumeTargets()) this.stepVolume(e, c === 'volUp');
         break;
       }
-      case 'group': this.startGrouping(); break;
       case 'shuffle': {
         const on = this.player ? ha.entities[this.player.entity]?.attributes.shuffle === true : false;
         this.act('shuffle_set', { shuffle: !on });
@@ -591,7 +592,10 @@ export class MusicPanel {
     const group = this.group();
     const others = this.players.filter((pl) => pl.entity !== p?.entity && group.has(pl.entity)).map((pl) => pl.name);
     child(this.el, '.music-group').innerHTML = others.length ? `${ICON.group}<span>Also on ${esc(others.join(', '))}</span>` : '';
-    child(this.el, '.music-spk-h').textContent = this.grouping ? `Play on ${p?.name ?? ''} and… · OK to add or remove · Back when done` : 'Speakers';
+    child(this.el, '.music-spk-h').textContent = this.grouping ? `Play on ${p?.name ?? ''} and…` : 'Speakers';
+    child(this.el, '.music-note').textContent = this.grouping
+      ? 'OK on a speaker to add or take it out · Done or Back when finished'
+      : 'OK on the chosen speaker to change its volume · OK on another to play different music in that room';
     this.el.classList.toggle('grouping', this.grouping);
     this.el.classList.toggle('sliding', this.slider);
 
@@ -600,7 +604,7 @@ export class MusicPanel {
       const c = b.dataset.c as Control;
       b.innerHTML = c === 'playpause' ? (s?.state === 'playing' ? ICON.pause : ICON.play) : ICON[c];
       b.classList.toggle('big', c === 'playpause');
-      b.classList.toggle('on', (c === 'shuffle' && a.shuffle === true) || (c === 'queue' && this.queueOpen) || (c === 'group' && others.length > 0));
+      b.classList.toggle('on', (c === 'shuffle' && a.shuffle === true) || (c === 'queue' && this.queueOpen) );
       b.classList.toggle('focus', c === focused);
     });
     child(this.el, '.music-gear').classList.toggle('focus', this.area === 'gear');
@@ -608,7 +612,12 @@ export class MusicPanel {
     child(this.el, '.music-vol').textContent = vol === undefined ? '' : `${Math.round(vol * 100)}%`;
     child(this.el, '.music-volbar i').style.width = `${Math.round((vol ?? 0) * 100)}%`;
 
-    child(this.el, '.music-speakers').innerHTML = this.players
+    const at = (i: number) => (this.area === 'speakers' && this.spk === i ? ' focus' : '');
+    const groupTile = this.players.length < 2 ? '' : this.grouping
+      ? `<div class="mspk top${at(-1)}"><span class="mspk-ico">${ICON.check}</span><div class="mspk-text"><div class="mspk-name"><span>Done grouping</span></div><div class="mspk-status"><span>${others.length ? `${others.length + 1} speakers together` : 'Just one speaker'}</span></div></div></div>`
+        + `<div class="mspk top${at(EVERYWHERE)}"><span class="mspk-ico">${ICON.everywhere}</span><div class="mspk-text"><div class="mspk-name"><span>${this.allGrouped() ? 'Just this speaker' : 'Play everywhere'}</span></div><div class="mspk-status"><span>${this.allGrouped() ? 'Take the others out' : 'Every speaker plays along'}</span></div></div></div>`
+      : `<div class="mspk wide${this.area === 'speakers' && this.spk === -1 ? ' focus' : ''}"><span class="mspk-ico">${ICON.group}</span><div class="mspk-text"><div class="mspk-name"><span>Group speakers</span></div><div class="mspk-status"><span>${others.length ? `${esc(p?.name ?? '')} with ${esc(others.join(', '))}` : `Play what ${esc(p?.name ?? 'this speaker')} is playing in more rooms`}</span></div></div></div>`;
+    child(this.el, '.music-speakers').innerHTML = groupTile + this.players
       .map((pl, i) => {
         const e = ha.entities[pl.entity];
         const t = e?.attributes.media_title;
@@ -628,8 +637,7 @@ export class MusicPanel {
 
         return `<div class="${cls}">${mark}<div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div><div class="mspk-status"><span>${esc(status)}</span></div></div></div>`;
       })
-      .join('')
-      + (this.grouping ? `<div class="mspk everywhere${this.spk === this.players.length && this.area === 'speakers' ? ' focus' : ''}"><span class="mspk-ico">${ICON.everywhere}</span><div class="mspk-text"><div class="mspk-name"><span>${this.allGrouped() ? 'Just this speaker' : 'Play everywhere'}</span></div><div class="mspk-status"><span>${this.allGrouped() ? 'Take the others out' : 'Every speaker plays along'}</span></div></div></div>` : '');
+      .join('');
     this.marquee();
 
     this.renderProgress();
@@ -820,7 +828,7 @@ export class MusicPanel {
 
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(k)) return;
     e.preventDefault();
-    const spkCount = this.players.length + (this.grouping ? 1 : 0);
+    const spkCount = this.players.length;
 
     if (this.slider) {
       const pl = this.players[this.spk];
@@ -850,20 +858,26 @@ export class MusicPanel {
           this.area = 'controls';
         }
       }
-      else if (this.area === 'speakers' && this.grouping) {
+      else if (this.area === 'speakers' && this.spk === -1) {
+        if (this.grouping) this.grouping = false;
+        else this.startGrouping();
+      } else if (this.area === 'speakers' && this.grouping) {
         const pl = this.players[this.spk];
 
-        if (this.spk === this.players.length) this.everywhere();
+        if (this.spk === EVERYWHERE) this.everywhere();
         else if (this.spk === this.active) this.grouping = false;
         else if (pl) this.toggleGroup(pl.entity);
       } else if (this.area === 'speakers') {
         const pl = this.players[this.spk];
-        // OK picks the speaker and opens its own volume slider.
-        if (this.spk !== this.active) {
+
+        // OK on the chosen speaker (or one playing along with it) opens its volume slider;
+        // OK on any other speaker chooses it, to play something else there.
+        if (pl && (this.spk === this.active || this.group().has(pl.entity))) {
+          this.slider = ha.entities[pl.entity]?.state !== 'unavailable' && this.volumeOf(pl.entity) !== undefined;
+        } else {
           this.active = this.spk;
           void this.loadCats();
         }
-        this.slider = !!pl && ha.entities[pl.entity]?.state !== 'unavailable' && this.volumeOf(pl.entity) !== undefined;
       } else if (this.area === 'cats') {
         const c = this.cats[this.cat];
 
@@ -896,13 +910,13 @@ export class MusicPanel {
       if (k === 'ArrowDown') {
         if (this.ctrlRow === 0) {
           this.ctrlRow = 1;
-          this.ctrl = Math.min(this.ctrl, CONTROL_ROWS[1].length - 1);
+          this.ctrl = this.ctrl <= 2 ? 0 : 1;
         } else this.area = 'gear';
       }
       if (k === 'ArrowUp') {
         if (this.ctrlRow === 1) {
           this.ctrlRow = 0;
-          this.ctrl = Math.min(this.ctrl + 1, CONTROL_ROWS[0].length - 1);
+          this.ctrl = this.ctrl === 0 ? 1 : 3;
         } else if (right() === 'browse') this.area = 'browse';
         else if (right() === 'queue') this.area = 'queue';
         else if (right() === 'speakers') {
@@ -924,19 +938,29 @@ export class MusicPanel {
       if (k === 'ArrowDown') this.qFocus = Math.min(this.maItems.length - 1, this.qFocus + 1);
       if (this.qFocus > this.maItems.length - 10) void this.moreQueue();
     } else if (this.area === 'speakers') {
-      // Two columns of speakers (plus "Play everywhere" while grouping).
-      if (k === 'ArrowUp') this.spk = Math.max(this.spk % 2, this.spk - 2);
+      // Two columns of speakers, under the Group tile (-1; while grouping, Done at -1 and
+      // Play everywhere at EVERYWHERE side by side).
+      if (k === 'ArrowUp' && this.spk >= 0) {
+        if (this.spk >= 2) this.spk -= 2;
+        else if (this.players.length > 1) this.spk = this.grouping && this.spk === 1 ? EVERYWHERE : -1;
+      }
       if (k === 'ArrowDown') {
-        if (this.spk + 2 < spkCount) this.spk += 2;
+        if (this.spk === -1) this.spk = 0;
+        else if (this.spk === EVERYWHERE) this.spk = Math.min(1, spkCount - 1);
+        else if (this.spk + 2 < spkCount) this.spk += 2;
         else if (this.spk % 2 === 0 && this.spk + 1 < spkCount && Math.floor(this.spk / 2) < Math.floor((spkCount - 1) / 2)) this.spk = spkCount - 1;
         else if (this.cats.length && !this.grouping) {
           this.area = 'cats';
           this.cat = this.spk % 2 === 0 ? 0 : Math.min(CAT_COLS - 1, this.cats.length - 1);
         }
       }
-      if (k === 'ArrowRight' && this.spk % 2 === 0 && this.spk + 1 < spkCount) this.spk++;
+      if (k === 'ArrowRight') {
+        if (this.spk === -1 && this.grouping) this.spk = EVERYWHERE;
+        else if (this.spk >= 0 && this.spk % 2 === 0 && this.spk + 1 < spkCount) this.spk++;
+      }
       if (k === 'ArrowLeft') {
-        if (this.spk % 2 === 1) this.spk--;
+        if (this.spk === EVERYWHERE) this.spk = -1;
+        else if (this.spk >= 0 && this.spk % 2 === 1) this.spk--;
         else {
           // Left out of the speakers goes to the controls; while grouping, that also finishes it.
           this.grouping = false;
