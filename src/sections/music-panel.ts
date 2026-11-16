@@ -781,7 +781,9 @@ export class MusicPanel {
           return `<div class="${cls} sliding"><span class="mspk-ico">${ICON.volUp}</span><div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div>`
             + `<div class="mspk-slider"><div class="mspk-bar"><i style="width:${Math.round(v * 100)}%"></i></div><span class="mspk-pct">${Math.round(v * 100)}%</span></div></div></div>`;
         }
-        const mark = this.grouping ? `<span class="mspk-check${i === this.active || inGroup ? ' on' : ''}">${i === this.active || inGroup ? ICON.check : ''}</span>`
+        // While grouping: the chosen speaker's square, a link on the ones playing along, an empty square on the rest.
+        const chosen = this.player?.entity ?? pl.entity;
+        const mark = this.grouping ? (i === this.active ? this.cover(chosen, false) : inGroup ? this.cover(chosen, true) : '<span class="mspk-cover still"></span>')
           : marked ? this.cover(host, !!lead) : '<span class="mspk-dot"></span>';
 
         return `<div class="${cls}">${mark}<div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div><div class="mspk-status"><span>${esc(status)}</span></div></div></div>`;

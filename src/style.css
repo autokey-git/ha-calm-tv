@@ -590,9 +590,6 @@ html.glass-tint .music-controls, html.glass-tint .music-cats, html.glass-tint .m
 .mspk.sliding .mspk-name { font-size: 22px; }
 .music.sliding .mspk:not(.sliding), .music.sliding .music-cats, .music.sliding .music-lib-h { opacity: 0.35; }
 .mspk { transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, opacity 0.25s ease; }
-.mspk-check { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
-.mspk-check svg { width: 22px; height: 22px; }
-.mspk-check.on { background: var(--warm); border-color: var(--warm); color: #111; }
 .mspk.active:not(.focus) { background: rgba(255, 255, 255, 0.05); }
 .mspk.focus { background: var(--plate); box-shadow: var(--plate-edge); }
 .mspk.mate:not(.focus) { background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22); }
