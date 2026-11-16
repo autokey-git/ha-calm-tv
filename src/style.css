@@ -664,3 +664,14 @@ html.glass-tint .mq-list { -webkit-backdrop-filter: none; backdrop-filter: none;
 .mcard.started .mcard-name::before { content: '▶ '; color: var(--warm); }
 .music-lib-msg { font-size: 22px; color: var(--ink-faint); padding: 8px 4px; }
 .music-hint { position: absolute; right: 110px; bottom: 42px; font-size: 20px; color: var(--ink-faint); }
+
+/* Door pop-ups (doors.ts): small glass cards in the top-right corner, newest at the bottom. */
+.door-pops { position: absolute; right: 56px; top: 56px; z-index: 70; display: flex; flex-direction: column; align-items: flex-end; gap: 14px; pointer-events: none; }
+.door-pop { display: flex; align-items: center; gap: 18px; padding: 16px 30px 16px 18px; border-radius: 26px; background: rgba(16, 18, 20, 0.82); border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.8); color: #fff; opacity: 0; transform: translateY(-14px); transition: opacity 0.35s ease, transform 0.35s ease; }
+.door-pop.in { opacity: 1; transform: none; }
+.door-pop-ico { position: relative; width: 56px; height: 56px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: rgba(255, 255, 255, 0.1); }
+.door-pop-ico svg { width: 36px; height: 36px; }
+.door-pop-ico b { position: absolute; right: -7px; top: -7px; width: 26px; height: 26px; border-radius: 50%; background: #e5484d; color: #fff; font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px rgba(16, 18, 20, 0.9); }
+.door-pop-text { display: flex; flex-direction: column; }
+.door-pop-name { font-size: 28px; font-weight: 600; white-space: nowrap; }
+.door-pop-sub { font-size: 20px; font-weight: 600; color: #ff8a8d; margin-top: 2px; }

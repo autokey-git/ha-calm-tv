@@ -23,7 +23,7 @@ import artB from './wallpapers/01-stylized-forest-brook.jpg?url';
  *  - Only the backgrounds shipped in the repo are offered.
  *  - ?demo&at=2026-11-14T18:30 sets the clock (it keeps running from there), so recordings match.
  *  - On a touch screen, an on-screen remote (demo-remote.ts).
- *  - In the browser console: ctDemo.ring() rings the doorbell; ctDemo.caption('Title', 'detail')
+ *  - In the browser console: ctDemo.ring() rings the doorbell; ctDemo.door('binary_sensor.front_door', true) opens a door; ctDemo.caption('Title', 'detail')
  *    shows a label at the top (ctDemo.caption('') hides it), for recordings.
  */
 
@@ -134,6 +134,8 @@ function initialStates() {
     ['light.porch', plainLight(true)],
     ['light.driveway', plainLight(false)],
     ['binary_sensor.garage_door', ['off', { device_class: 'garage_door' }]],
+    ['binary_sensor.front_door', ['off', { device_class: 'door' }]],
+    ['binary_sensor.back_door', ['off', { device_class: 'door' }]],
     ['sensor.garage_temperature', ['54', { unit_of_measurement: '°F', device_class: 'temperature' }]],
     ['binary_sensor.garage_occupancy', ['off', { device_class: 'occupancy' }]],
     ['camera.front_door', just('idle')],
@@ -570,6 +572,7 @@ export function startDemo(): void {
 
   window.ctDemo = {
     caption,
+    door: (id = 'binary_sensor.front_door', open = true) => home.set(id, open ? 'on' : 'off'),
     ring: () => {
       home.set('input_boolean.doorbell_ringing', 'on');
       window.setTimeout(() => home.set('input_boolean.doorbell_ringing', 'off'), 20000);
@@ -580,6 +583,6 @@ export function startDemo(): void {
 declare global {
   interface Window {
     /** Demo mode only: ring the doorbell, or show a label at the top (see demo.ts). */
-    ctDemo?: { ring(): void; caption(title: string, detail?: string): void };
+    ctDemo?: { ring(): void; caption(title: string, detail?: string): void; door(id?: string, open?: boolean): void };
   }
 }

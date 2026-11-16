@@ -20,6 +20,7 @@ import android.view.accessibility.AccessibilityEvent
  */
 class HomeButtonService : AccessibilityService() {
     private var doorbell: DoorbellOverlay? = null
+    private var doors: DoorPopups? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -28,6 +29,7 @@ class HomeButtonService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         doorbell?.close()
+        doors?.close()
         if (instance === this) instance = null
         return super.onUnbind(intent)
     }
@@ -40,6 +42,14 @@ class HomeButtonService : AccessibilityService() {
             val overlay = DoorbellOverlay(this) { doorbell = null }
             doorbell = overlay
             overlay.show(MainActivity.pageUrl ?: MainActivity.BUNDLED_URL, look)
+        }
+    }
+
+    /** A door pop-up in the corner over the current app (see DoorPopups). Safe to call from any thread. */
+    fun showDoor(name: String, left: Boolean) {
+        Handler(Looper.getMainLooper()).post {
+            val popups = doors ?: DoorPopups(this).also { doors = it }
+            popups.show(name, left)
         }
     }
 

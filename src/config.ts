@@ -105,6 +105,18 @@ const ConfigSchema = v.object({
     }),
   ),
   /**
+   * A small pop-up in the corner when a door opens, even over other apps (it never pauses them):
+   * an open door with the door's name for a few seconds. A door still open after `leftOpen` seconds
+   * (default 10) pops up again with a red "!" and "Left open". Off unless doors are listed.
+   */
+  doors: v.optional(
+    v.object({
+      popup: v.optional(v.boolean()),
+      entities: v.optional(v.array(v.object({ name: v.string(), entity: EntityId }))),
+      leftOpen: v.optional(v.pipe(v.number('should be a number of seconds, e.g. 10'), v.minValue(5))),
+    }),
+  ),
+  /**
    * The screens to show, in order, e.g. ["apps", "smarthome", "weather"] for no Calendar. Apps is
    * always shown, and first (it holds Settings). Default: all four.
    */

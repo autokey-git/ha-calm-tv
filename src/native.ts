@@ -17,6 +17,8 @@ interface CalmTvNative {
   showDoorbell?(): boolean;
   /** The same, sized and placed by JSON { size, center, pause } (see DoorbellLook); newer TV apps only. */
   showDoorbellWith?(look: string): boolean;
+  /** A door pop-up in the corner over the current app, JSON { name, left }; false if it can't. */
+  showDoor?(json: string): boolean;
   /** Home Assistant's address saved on the TV, or "". */
   getHaUrl?(): string;
   /** Saves Home Assistant's address; returns the cleaned-up address, or "" if invalid. */

@@ -1065,7 +1065,15 @@ export class MusicPanel {
     if (this.area === 'controls') {
       const row = CONTROL_ROWS[this.ctrlRow];
 
-      if (k === 'ArrowLeft') this.ctrl = Math.max(0, this.ctrl - 1);
+      if (k === 'ArrowLeft') {
+        if (this.ctrl > 0) this.ctrl--;
+        else if (!e.repeat && right() === 'speakers' && this.cats.length && !this.grouping) {
+          // Wraps around to the end of the library row level with it (not while held).
+          this.area = 'cats';
+          const lastRow = Math.floor((this.cats.length - 1) / CAT_COLS);
+          this.cat = Math.min(this.cats.length - 1, Math.min(this.ctrlRow, lastRow) * CAT_COLS + CAT_COLS - 1);
+        }
+      }
       if (k === 'ArrowRight') {
         if (this.ctrl < row.length - 1) this.ctrl++;
         else if (right() === 'speakers' && this.cats.length && !this.grouping) {
@@ -1136,7 +1144,15 @@ export class MusicPanel {
       // A grid of library buttons, CAT_COLS across.
       const col = this.cat % CAT_COLS;
 
-      if (k === 'ArrowRight' && col < CAT_COLS - 1 && this.cat + 1 < this.cats.length) this.cat++;
+      if (k === 'ArrowRight') {
+        if (col < CAT_COLS - 1 && this.cat + 1 < this.cats.length) this.cat++;
+        else if (!e.repeat) {
+          // Wraps around to the start of the controls row level with it (not while held).
+          this.area = 'controls';
+          this.ctrlRow = Math.min(1, Math.floor(this.cat / CAT_COLS));
+          this.ctrl = 0;
+        }
+      }
       if (k === 'ArrowLeft') {
         if (col > 0) this.cat--;
         else this.area = 'controls';

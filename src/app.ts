@@ -20,6 +20,7 @@ import { applyStates, WEATHER } from './home-data';
 import { conditionLabel } from './sections/weather-section';
 import { MusicPanel } from './sections/music-panel';
 import { DoorbellWindow, doorbellEnabled, doorbellLook, doorbellRinging } from './doorbell';
+import { watchDoors } from './doors';
 import { screenOrder, type ScreenName } from './config';
 
 
@@ -77,6 +78,7 @@ export class CalmTv {
     );
     this.detail = new ZoneDetail(qs('#stage'), () => this.home.refresh());
     this.doorbell = new DoorbellWindow(qs('#stage'), 'Back to dismiss');
+    watchDoors(qs('#stage'));
     this.home = new SmartHomeSection(at('smarthome'), (z) => this.detail.openZone(z), () => ha.signIn());
 
     // Cards come and go as the calendar loads: keep focus valid while it's on screen. (A `let`, as
