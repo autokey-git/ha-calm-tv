@@ -149,9 +149,9 @@ class SidePanel {
     f?.el.classList.toggle('adjusting', this.adjusting);
     f?.el.scrollIntoView({ block: 'nearest' });
     this.hint.textContent = this.camera ? 'Back to close the camera'
-      : this.adjusting && this.range?.editing ? '← → to change · OK when done'
+      : this.adjusting && this.range?.editing ? '↑ ↓ to change · OK when done'
       : this.adjusting && this.range ? '← → heat or cool · OK to change it · Back when done'
-      : this.adjusting ? '← → to change · OK when done'
+      : this.adjusting ? '↑ ↓ to change · OK when done'
       : f?.kind === 'sensor' && f.device?.control ? `OK to ${f.device.on ? 'close' : 'open'} · Back or ★ to close`
       : f?.kind === 'climate' ? 'OK to change the temperature · Back or ★ to close'
       : f?.kind === 'music' ? 'OK to play or pause · Back or ★ to close'
