@@ -4,6 +4,7 @@ import { settings } from '../config';
 import { zones } from '../home-data';
 import { showSetup } from '../setup';
 import { child } from '../dom';
+import { apps, hasDockOrder, resetDockOrder } from '../apps';
 import {
   glass, glassSource, hasOverrides, resetToConfig, setGlass, setShowFps,
   setTransitions, setVideos, showFps, transitions, transitionsSource, videosOn, videosSource,
@@ -28,6 +29,7 @@ const ICONS = {
   glass: line('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 15l7-7M12 16l4-4"/>'),
   fade: line('<rect x="3" y="6" width="11" height="12" rx="2"/><path d="M17 8v8M20 10v4"/>'),
   counter: line('<path d="M4 18h16M6 15l3-4 3 2 5-6"/>'),
+  arrange: line('<rect x="3" y="8" width="5" height="8" rx="1.5"/><rect x="10" y="8" width="5" height="8" rx="1.5"/><path d="M18 12h4M20 10l2 2-2 2"/>'),
   reset: line('<path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/>'),
 };
 
@@ -76,7 +78,7 @@ export class SettingsPanel {
   /** OK presses right after opening belong to the press that opened the panel. */
   private openedAt = 0;
 
-  constructor(mount: HTMLElement, private bg: BackgroundControls) {
+  constructor(mount: HTMLElement, private bg: BackgroundControls, private arrangeDock: () => void) {
     const onTv = !!native;
 
     const connection = (): string =>
@@ -197,6 +199,35 @@ export class SettingsPanel {
           status: () =>
             `Video ${videosOn() ? 'on' : 'off'} · ${glass() === 'blur' ? 'frosted' : 'tinted'} glass · ${transitions() === 'fade' ? 'fade' : 'instant'}`,
           menu: performance,
+        },
+        {
+          icon: ICONS.arrange,
+          name: 'Arrange dock',
+          status: () => `${hasDockOrder() ? 'Your order' : 'As in calm-tv.json'} · ${apps.length - 1} tiles · OK to move them`,
+          menu: {
+            title: 'Arrange dock',
+            rows: [
+              {
+                icon: ICONS.arrange,
+                name: 'Move tiles',
+                status: () => 'On the dock: OK picks a tile up, ←/→ moves it, OK puts it down, Back when done',
+                run: () => {
+                  this.close();
+                  this.arrangeDock();
+                },
+              },
+              {
+                icon: ICONS.reset,
+                name: 'Back to the original order',
+                status: () => (hasDockOrder() ? 'The order in calm-tv.json · OK to reset' : 'Already in the original order'),
+                run: () => {
+                  if (!hasDockOrder()) return;
+                  resetDockOrder();
+                  location.reload();
+                },
+              },
+            ],
+          },
         },
         { icon: ICONS.ha, name: 'Home Assistant', status: connection, menu: homeAssistant },
         {

@@ -160,6 +160,12 @@ html.glass-tint .gb-veil { background: rgba(8, 14, 18, 0.5); }
 /* Your own icon files (calm-tv.json "icon": "/local/…"): any colours become a white silhouette. */
 .mark-img { width: 76px; height: 76px; object-fit: contain; display: block; filter: brightness(0) invert(1); }
 .tile.is-focus .mark { opacity: 1; }
+/* Settings → Arrange dock: tiles show their outlines; the one picked up lifts and glows. */
+#secApps.arranging .plate { opacity: 1; background: rgba(255, 255, 255, 0.05); border: 1px dashed rgba(255, 255, 255, 0.25); }
+#secApps.arranging .tile.is-focus .plate { background: var(--plate); border-style: solid; }
+.tile { transition: left 0.2s ease, transform 0.2s ease; }
+.tile.is-held { transform: translateY(-12px); }
+.tile.is-held .plate { box-shadow: 0 0 0 3px var(--warm), 0 14px 30px rgba(0, 0, 0, 0.45); }
 
 /* ---------- Smart Home section ---------- */
 .therm { position: absolute; top: 178px; left: 50%; transform: translateX(-50%); text-align: center; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5); }

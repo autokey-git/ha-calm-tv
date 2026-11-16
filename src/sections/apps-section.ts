@@ -1,4 +1,4 @@
-import { apps } from '../apps';
+import { apps, saveDockOrder } from '../apps';
 import type { App } from '../types';
 import type { Section } from './section';
 import { child } from '../dom';
@@ -20,6 +20,9 @@ export class AppsSection implements Section {
   private clockEl!: HTMLElement;
   private dateEl!: HTMLElement;
   private first = 0;
+  /** Arrange mode: OK picks a tile up, ←/→ carry it, OK puts it down. */
+  arranging = false;
+  private held = false;
 
   constructor(private secIndex: number, private onLaunch: (a: App) => void) {
     this.el = this.build();
@@ -93,6 +96,56 @@ export class AppsSection implements Section {
 
     this.track.style.transform = `translateX(${tx}px)`;
     this.tiles[i]?.classList.add('is-focus');
+  }
+
+  startArrange(): void {
+    this.arranging = true;
+    this.held = false;
+    this.el.classList.add('arranging');
+  }
+
+  /** Arrange mode's keys. Takes the focused tile, gives back the tile to focus. Settings stays last. */
+  arrangeKey(key: string, i: number): number {
+    const last = apps.length - 2; // the last tile you can move; Settings is after it
+
+    if (key === 'Escape' || key === 'Backspace') {
+      this.arranging = this.held = false;
+      this.el.classList.remove('arranging');
+      this.tiles.forEach((t) => t.classList.remove('is-held'));
+      saveDockOrder();
+
+      return i;
+    }
+
+    if (key === 'Enter' || key === ' ') {
+      if (apps[i]?.kind === 'settings') return i;
+      this.held = !this.held;
+
+      if (!this.held) saveDockOrder();
+    } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+      const j = i + (key === 'ArrowLeft' ? -1 : 1);
+
+      if (this.held) {
+        if (j < 0 || j > last) return i;
+        [apps[i], apps[j]] = [apps[j], apps[i]];
+        [this.tiles[i], this.tiles[j]] = [this.tiles[j], this.tiles[i]];
+        this.place(i);
+        this.place(j);
+      }
+
+      i = Math.max(0, Math.min(j, apps.length - 1));
+    }
+
+    this.tiles.forEach((t, n) => t.classList.toggle('is-held', this.held && n === i));
+    this.focus(i);
+
+    return i;
+  }
+
+  private place(i: number): void {
+    const t = this.tiles[i];
+    t.dataset.item = String(i);
+    t.style.left = `${i * PITCH}px`;
   }
 
   blur(): void {

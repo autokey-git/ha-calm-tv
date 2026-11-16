@@ -34,8 +34,49 @@ export function loadApps(): void {
   // With "music" in calm-tv.json, the Music tile goes at the end, next to Settings, unless "apps" places it.
   if (settings.config.music && !list.some((a) => a.kind === 'music')) list = [...list, musicTile];
   const installed = installedPackages();
-  apps = [...(installed ? list.filter((a) => !a.pkg || installed.has(a.pkg)) : list), settingsTile];
+  apps = [...savedOrder(installed ? list.filter((a) => !a.pkg || installed.has(a.pkg)) : list), settingsTile];
 }
+
+// ---------- your own order (Settings → Arrange dock), kept on this TV ----------
+
+const ORDER_KEY = 'calmtv.dockOrder';
+
+/** What identifies a tile in the saved order. */
+export const tileKey = (a: App) => a.pkg ?? a.kind ?? a.name;
+
+function readOrder(): string[] {
+  try {
+    const v: unknown = JSON.parse(localStorage.getItem(ORDER_KEY) ?? '[]');
+
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Tiles in the saved order; ones it doesn't know yet (newly added) go after them, as listed. */
+function savedOrder(list: App[]): App[] {
+  const order = readOrder();
+
+  if (!order.length) return list;
+  const at = (a: App) => { const i = order.indexOf(tileKey(a)); return i < 0 ? order.length : i; };
+
+  return list.map((a, i) => ({ a, i })).sort((x, y) => at(x.a) - at(y.a) || x.i - y.i).map((x) => x.a);
+}
+
+/** Remembers the dock as it is now (Settings stays last either way). */
+export function saveDockOrder(): void {
+  try {
+    localStorage.setItem(ORDER_KEY, JSON.stringify(apps.filter((a) => a.kind !== 'settings').map(tileKey)));
+  } catch { /* storage off: the order lasts until the app restarts */ }
+}
+
+/** Back to calm-tv.json's order. */
+export function resetDockOrder(): void {
+  try { localStorage.removeItem(ORDER_KEY); } catch { /* nothing saved */ }
+}
+
+export const hasDockOrder = () => readOrder().length > 0;
 
 /** Calm TV's Music panel (sections/music-panel.ts). */
 const musicTile: App = { name: 'Music', mark: icon('music'), kind: 'music' };
