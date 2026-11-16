@@ -1,3 +1,5 @@
+import type { Variants } from './variants';
+
 export interface App {
   /** Display name, shown as the tile label. */
   name: string;
@@ -12,6 +14,8 @@ export interface App {
 export interface Wallpaper {
   name: string;
   url: string;
+  /** Versions for the times of day, if it has them (see variants.ts). */
+  variants?: Variants;
 }
 
 /** light, switch: on/off. cover: curtains/blinds. lock, sensor: status only. scene: a scene picker (an HA select entity, e.g. from Hue). */

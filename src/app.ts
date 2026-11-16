@@ -21,6 +21,7 @@ import { conditionLabel } from './sections/weather-section';
 import { MusicPanel } from './sections/music-panel';
 import { DoorbellWindow, doorbellEnabled, doorbellLook, doorbellRinging } from './doorbell';
 import { screenOrder, type ScreenName } from './config';
+import { sky } from './sky';
 
 
 /** An element of the page's own markup (index.html). */
@@ -242,7 +243,9 @@ export class CalmTv {
 
   // ---------- wallpaper ----------
   private paintInitial(): void {
-    const css = `url("${wallpapers[this.wp].url}")`;
+    sky.mount(qs('#stage'));
+    sky.onPhase(() => this.phaseChanged());
+    const css = `url("${this.photoUrl(this.wp)}")`;
     qs('#photo').style.backgroundImage = css;
     this.setBarImages(css);
     this.applyLook();
@@ -261,6 +264,8 @@ export class CalmTv {
 
   // ---------- video background ----------
   private videoUrl = '';
+  /** The version of the clip that's playing (see sky.pick). */
+  private videoPick = '';
   private get vid(): number {
     const byName = videos.findIndex((v) => v.name === this.persist.vidName);
 
@@ -286,6 +291,7 @@ export class CalmTv {
 
     if (mode === 'video') void this.playVideo(this.vid);
     else {
+      this.photoUrl(this.wp);
       v.pause();
       v.classList.remove('ready');
       v.removeAttribute('src');
@@ -304,16 +310,20 @@ export class CalmTv {
     const v = video();
 
     if (!clip) return;
+    // The version for this time of day, if the clip has them (see sky.ts).
+    const pick = sky.pick(clip.name, clip.url, clip.variants);
+    this.videoPick = pick.url;
+    sky.setScene(clip.name, pick.native);
 
     try {
       // Clips on another server (Home Assistant's www folder) can't be read into memory (CORS),
       // so those play straight from their address.
-      let src = clip.url;
+      let src = pick.url;
 
-      if (new URL(clip.url, location.href).origin === location.origin) {
-        const blob = await (await fetch(clip.url)).blob();
+      if (new URL(pick.url, location.href).origin === location.origin) {
+        const blob = await (await fetch(pick.url)).blob();
 
-        if (this.bgMode !== 'video' || this.vid !== i) return; // changed while loading
+        if (this.bgMode !== 'video' || this.vid !== i || this.videoPick !== pick.url) return; // changed while loading
         src = URL.createObjectURL(blob);
       }
 
@@ -360,6 +370,35 @@ export class CalmTv {
       this.showPhoto(c.index);
     }
   }
+  /** Photo n's version for this time of day (see sky.pick); also tells the sky which one is showing. */
+  private photoUrl(n: number): string {
+    const w = wallpapers[n];
+    const pick = sky.pick(w.name, w.url, w.variants);
+    sky.setScene(w.name, pick.native);
+
+    return pick.url;
+  }
+
+  /**
+   * Morning, day, evening or night has taken over: a background with a version for it changes to that
+   * version, slowly. One without versions needs nothing; the sky's colours change by themselves.
+   */
+  private phaseChanged(): void {
+    if (this.bgMode === 'video') {
+      const clip = videos[this.vid];
+
+      if (clip?.variants && sky.pick(clip.name, clip.url, clip.variants).url !== this.videoPick) void this.playVideo(this.vid);
+
+      return;
+    }
+
+    if (!wallpapers[this.wp].variants) return;
+    const slow = '8s';
+    ['#photo', '#photo2'].forEach((id) => (qs(id).style.transitionDuration = slow));
+    this.showPhoto(this.wp);
+    window.setTimeout(() => ['#photo', '#photo2'].forEach((id) => (qs(id).style.transitionDuration = '')), 8500);
+  }
+
   /** Cross-fades to the next wallpaper; returns its name. */
   private nextWallpaper(): string {
     return this.showPhoto((this.wp + 1) % wallpapers.length);
@@ -369,7 +408,7 @@ export class CalmTv {
     this.persist.wp = n;
     this.persist.wpName = wallpapers[n]?.name ?? '';
     save(this.persist);
-    const css = `url("${wallpapers[n].url}")`;
+    const css = `url("${this.photoUrl(n)}")`;
     const incoming = qs(this.frontA ? '#photo2' : '#photo');
     const outgoing = qs(this.frontA ? '#photo' : '#photo2');
     incoming.style.backgroundImage = css;

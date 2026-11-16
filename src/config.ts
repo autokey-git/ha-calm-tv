@@ -33,6 +33,9 @@ const DeviceSchema = v.object({
 });
 
 /** The screens, in their default order (↓ moves through them). */
+/** A background's versions for the times of day (see variants.ts). */
+const PHASE_URLS = { dawn: v.optional(v.string()), day: v.optional(v.string()), dusk: v.optional(v.string()), night: v.optional(v.string()) };
+
 export const SCREENS = ['apps', 'smarthome', 'calendar', 'weather'] as const;
 
 export type ScreenName = (typeof SCREENS)[number];
@@ -85,6 +88,18 @@ const ConfigSchema = v.object({
   ),
   /** Weather entity for the Weather screen and the Smart Home "Outside" line. */
   weather: v.optional(EntityId),
+  /**
+   * The living sky (off unless present): the background follows the time of day from `sun`
+   * (default sun.sun) and draws the weather from `weather` (default the Weather screen's entity).
+   * `effects: false` keeps the time of day but draws no rain, snow or fog.
+   */
+  sky: v.optional(
+    v.object({
+      sun: v.optional(EntityId),
+      weather: v.optional(EntityId),
+      effects: v.optional(v.boolean('should be true or false')),
+    }),
+  ),
   /** Calendar entities: `events` fill the Calendar bar; `meals` (optional) gives "Dinner · …" from today's all-day event. */
   calendar: v.optional(v.object({ events: v.optional(EntityId), meals: v.optional(EntityId) })),
   /**
@@ -125,8 +140,9 @@ const ConfigSchema = v.object({
   /** Extra backgrounds, e.g. files in Home Assistant's www folder ("/local/beach.jpg"). */
   backgrounds: v.optional(
     v.object({
-      photos: v.optional(v.array(v.object({ name: v.string(), url: v.string() }))),
-      videos: v.optional(v.array(v.object({ name: v.string(), url: v.string(), thumb: v.optional(v.string()) }))),
+      // Each can also have `dawn`, `dusk` and `night` versions (and `day`, if `url` isn't it), for the living sky.
+      photos: v.optional(v.array(v.object({ name: v.string(), url: v.string(), ...PHASE_URLS }))),
+      videos: v.optional(v.array(v.object({ name: v.string(), url: v.string(), thumb: v.optional(v.string()), ...PHASE_URLS }))),
     }),
   ),
 });

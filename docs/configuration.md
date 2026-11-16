@@ -48,6 +48,7 @@ default app dock.
   "doorbell": { "window": false, "camera": "camera.front_door", "ringing": "input_boolean.doorbell_ringing" },
   "rooms": [ … ],         // the Smart Home bar
   "display": { "glass": "blur", "videos": true, "transitions": "fade" },
+  "sky": { "sun": "sun.sun" },   // the living sky: time of day and weather on the background
   "backgrounds": { "photos": [ … ], "videos": [ … ] }
 }
 ```
@@ -231,6 +232,30 @@ TV's own changes.
 - `transitions`: how screens change. `"fade"` (the default) cross-fades; `"instant"` switches with no
   animation, the lightest option on slow devices.
 
+### `sky`: the living sky
+
+```json
+{ "sky": {} }
+```
+
+With `sky` in the file, the background follows the real time of day and the weather:
+
+- **Time of day** from the sun's height (`sun`, default `sun.sun`), so dawn and dusk arrive with the
+  real sunrise and sunset and blend in gradually. Any photo or video gets a code-only look: warmer at
+  dawn and dusk, darker and bluer at night, with stars in the open sky when it's clear. A background
+  whose name says when it was made ("…Sunset", "…Night") isn't tinted toward that time again.
+- **Weather** from `weather` (default the `weather` entity above): rain, heavier rain when it pours,
+  snow, low fog, drifting cloud shadows and the odd lightning flash, drawn by the app over any
+  background. `"effects": false` keeps the time of day without them.
+- **Versions for each time of day:** a background can come in four versions, named
+  `NN-name.dawn.jpg`, `NN-name.day.jpg`, `NN-name.dusk.jpg` and `NN-name.night.jpg` (or `.mp4`) in
+  `src/wallpapers/` or `src/videos/`. They show as one background, and the version for the time of
+  day replaces the code-only look. From Home Assistant, add `"dawn"`, `"dusk"` and `"night"` addresses
+  next to `"url"` in `backgrounds` below.
+
+Without `sun.sun`, a rough day from the clock is used. To preview it in a browser:
+`?demo&sky=night&wx=snowy` (times: `dawn`, `day`, `dusk`, `night`; any Home Assistant weather condition).
+
 ### `backgrounds`: extra photos and videos
 
 ```json
@@ -239,6 +264,9 @@ TV's own changes.
   "videos": [{ "name": "Fireplace", "url": "/local/calm-tv/fireplace.mp4", "thumb": "/local/calm-tv/fireplace.jpg" }]
 }
 ```
+
+With [`sky`](#sky-the-living-sky), each can also have `"dawn"`, `"dusk"` and `"night"` versions:
+`{ "name": "Our beach", "url": "/local/calm-tv/beach.jpg", "night": "/local/calm-tv/beach-night.jpg" }`.
 
 Paths starting with `/` are on Home Assistant (its `www` folder is `/local/`). Full `http(s)://`
 addresses also work. They're added after the built-in backgrounds in Settings → Background.

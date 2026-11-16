@@ -79,6 +79,26 @@ html.bg-video:not(.glass-tint) .gb-mat { -webkit-backdrop-filter: blur(10px); ba
 /* "display": { "glass": "tint" }: plain dark glass instead of frosted, over photos and videos alike. */
 html.glass-tint .gb-img { display: none; }
 html.glass-tint .gb-veil { background: rgba(8, 14, 18, 0.5); }
+/* The living sky (sky.ts): time-of-day colour and weather, between the background and the screens. */
+.sky-layer { pointer-events: none; }
+#skyTint { mix-blend-mode: multiply; background: #fff; transition: background-color 60s linear; }
+#skyGlow { mix-blend-mode: screen; }
+#skyClouds, #skyFog { overflow: hidden; opacity: 0; transition: opacity 20s ease; }
+#skyClouds .sky-drift { filter: brightness(0); }
+.sky-drift {
+  position: absolute; left: 0; top: 0; width: 3840px; height: 1080px;
+  background-size: 1920px 1080px; background-repeat: repeat-x;
+  animation: sky-drift var(--drift, 180s) linear infinite; will-change: transform;
+}
+#skyFog .sky-drift { --drift: 140s; }
+/* Fog lies low: it thins out toward the top of the sky. */
+#skyFog { -webkit-mask-image: linear-gradient(to bottom, transparent 5%, #000 45%, #000 80%, rgba(0, 0, 0, 0.6)); mask-image: linear-gradient(to bottom, transparent 5%, #000 45%, #000 80%, rgba(0, 0, 0, 0.6)); }
+@keyframes sky-drift { to { transform: translateX(-1920px); } }
+html.sky-paused .sky-drift { animation-play-state: paused; }
+#skyFx { width: 1920px; height: 1080px; }
+/* Photo backgrounds: the bars show a blurred copy of the photo, so they get the same tint. */
+.gb-img::after { content: ''; position: absolute; inset: 0; background: var(--sky-tint, #fff); mix-blend-mode: multiply; transition: background-color 60s linear; }
+html:not(.sky-on) .gb-img::after { display: none; }
 #grain {
   pointer-events: none; opacity: 0.06; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
