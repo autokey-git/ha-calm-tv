@@ -64,6 +64,9 @@ Calm TV itself re-reads the calendars every 5 minutes.
 
 ## 5. The doorbell window (optional)
 
+A step-by-step version, with how to find your own entity ids, is in
+[doorbell-and-music.md](doorbell-and-music.md).
+
 Calm TV watches an `input_boolean` that is on while someone is at the door:
 
 1. Create a helper: Settings → Devices & services → Helpers → Toggle, e.g. **Doorbell ringing**

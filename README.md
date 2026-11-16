@@ -131,7 +131,8 @@ Don't install anything on the TV or change its settings yet.
 Follow [docs/getting-started.md](docs/getting-started.md), then
 [docs/tv-setup.md](docs/tv-setup.md): install the app, make it the home screen, point it at Home
 Assistant and sign in once. [docs/home-assistant.md](docs/home-assistant.md) covers what Home
-Assistant needs.
+Assistant needs, and [docs/doorbell-and-music.md](docs/doorbell-and-music.md) sets up the
+doorbell window and the Music panel with your own entities.
 
 The [latest release](https://github.com/NeoCarlos/ha-calm-tv/releases/latest) has a ready-made APK,
 so you can try it without building anything. It's a debug build; build your own from source for
