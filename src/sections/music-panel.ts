@@ -1,6 +1,7 @@
 import { ha, type ServiceData } from '../ha';
 import { haPath, settings } from '../config';
 import { child } from '../dom';
+import { icon } from '../icons';
 import { ma, maConfigured, type MaQueueItem } from '../music-assistant';
 import { showMaSetup } from '../ma-setup';
 
@@ -182,6 +183,7 @@ export class MusicPanel {
     this.el.innerHTML = `
       <div class="music-bg"></div>
       <div class="music-scrim"></div>
+      <div class="music-logo" aria-hidden="true">${icon('musicassistant')}</div>
       <div class="music-body">
         <div class="music-now">
           <div class="music-art"></div>

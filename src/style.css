@@ -496,6 +496,11 @@ html.instant .section { transition: none !important; }
 .music-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 6, 8, 0.45), rgba(4, 6, 8, 0.7)); }
 .music-body { position: absolute; inset: 96px 110px 110px; display: flex; gap: 100px; }
 .music-now { flex: 0 0 600px; width: 600px; min-width: 0; display: flex; flex-direction: column; }
+/* Music Assistant's mark in the empty top-left corner, beside the art; it takes no space. */
+.music-logo { position: absolute; left: 110px; top: 96px; width: 56px; height: 56px; color: var(--ink); opacity: 0.5; pointer-events: none; transition: opacity 0.25s ease; }
+.music-logo svg { width: 100%; height: 100%; display: block; }
+.music-logo svg path { fill: currentColor; }
+.music.grouping .music-logo { opacity: 0.12; }
 .music-art { flex: 0 0 auto; align-self: center; width: 420px; height: 420px; border-radius: 28px; overflow: hidden; background: rgba(255, 255, 255, 0.06); box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.8); }
 .music-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .music-art-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
