@@ -63,7 +63,10 @@ function artTint(url: string): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onerror = () => resolve(null);
+    img.onerror = () => {
+      console.warn('Album art colour: the picture could not be read', url);
+      resolve(null);
+    };
     img.onload = () => {
       try {
         const n = 24;
