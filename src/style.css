@@ -247,9 +247,16 @@ html.glass-tint .gb-veil { background: rgba(8, 14, 18, 0.5); }
   position: relative; display: flex; align-items: center; gap: 20px; width: 100%; padding: 20px 22px;
   border-radius: 22px; cursor: pointer; text-align: left; color: var(--ink); font-family: inherit;
   background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: background 0.18s ease, box-shadow 0.18s ease;
 }
-.drow.focus { background: rgba(255, 255, 255, 0.12); box-shadow: var(--ring), var(--plate-edge); }
+/* The focus highlight is its own layer that only fades (like the dock's plate), so moving focus
+   never repaints the row or re-blurs the frosted panel behind it. That repaint was the lag. */
+.drow::before {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  background: rgba(255, 255, 255, 0.12); box-shadow: var(--ring), var(--plate-edge);
+  opacity: 0; transition: opacity 0.12s ease; will-change: opacity;
+}
+.drow > * { position: relative; }
+.drow.focus::before { opacity: 1; }
 .dicon { width: 56px; height: 56px; border-radius: 15px; background: rgba(255, 255, 255, 0.06); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--ink); }
 .dicon svg { width: 30px; height: 30px; }
 .dmeta { min-width: 0; flex: 1 1 auto; }
