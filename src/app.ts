@@ -200,12 +200,17 @@ export class CalmTv {
     this.hideHint();
   }
 
-  private moveH(d: number): void {
+  private moveH(d: number, held = false): void {
     const s = this.sections[this.secIndex];
     const n = s.count();
 
     if (n <= 0) return;
-    this.cols[this.secIndex] = Math.max(0, Math.min(this.cols[this.secIndex] + d, n - 1));
+    const next = this.cols[this.secIndex] + d;
+
+    // The dock wraps around: Left on the first tile goes to the last, and Right on the last to the
+    // first. Not while the button is held, so holding it stops at the end instead of circling.
+    if (s === this.appsSection && !held && (next < 0 || next >= n)) this.cols[this.secIndex] = (next + n) % n;
+    else this.cols[this.secIndex] = Math.max(0, Math.min(next, n - 1));
     s.focus(this.cols[this.secIndex]);
     this.hideHint();
   }
@@ -446,8 +451,8 @@ export class CalmTv {
       switch (k) {
         case 'ArrowUp': e.preventDefault(); this.moveV(-1); break;
         case 'ArrowDown': e.preventDefault(); this.moveV(1); break;
-        case 'ArrowLeft': e.preventDefault(); this.moveH(-1); break;
-        case 'ArrowRight': e.preventDefault(); this.moveH(1); break;
+        case 'ArrowLeft': e.preventDefault(); this.moveH(-1, e.repeat); break;
+        case 'ArrowRight': e.preventDefault(); this.moveH(1, e.repeat); break;
         case 'Enter':
         case ' ': e.preventDefault(); this.activate(); break;
         case 'w':
