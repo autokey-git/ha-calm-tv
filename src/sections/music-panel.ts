@@ -305,7 +305,7 @@ export class MusicPanel {
               <div class="music-h music-spk-h">Speakers</div>
               <div class="music-note"></div>
             </div>
-            <div class="music-speakers"></div>
+            <div class="music-spk-wrap"><div class="music-speakers"></div><div class="music-spk-track"><i></i></div></div>
             <div class="music-h music-lib-h">Library</div>
             <div class="music-cats"></div>
           </div>
@@ -789,12 +789,28 @@ export class MusicPanel {
       .join('');
     // With many speakers the sheet scrolls: keep the focused one in view.
     this.el.querySelector<HTMLElement>('.music-speakers .mspk.focus')?.scrollIntoView({ block: 'nearest' });
+    this.speakerTrack();
     this.marquee();
 
     this.renderProgress();
     this.renderCats();
     this.renderBrowse();
     this.renderQueue();
+  }
+
+  /** The thin track beside the speakers, shown only when there are more than fit. */
+  private speakerTrack(): void {
+    const box = child(this.el, '.music-speakers');
+    const track = child(this.el, '.music-spk-track');
+    const more = box.scrollHeight - box.clientHeight;
+
+    track.classList.toggle('on', more > 2);
+    track.parentElement?.classList.toggle('more', more > 2);
+    if (more <= 2) return;
+    const share = box.clientHeight / box.scrollHeight;
+    const thumb = child(track, 'i');
+    thumb.style.height = `${share * 100}%`;
+    thumb.style.top = `${(box.scrollTop / more) * (1 - share) * 100}%`;
   }
 
   /** Speaker cards keep their size; a name or status too long for the focused card scrolls. */

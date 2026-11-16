@@ -602,8 +602,15 @@ html.glass-tint .music-controls, html.glass-tint .music-cats, html.glass-tint .m
 /* The library sits at the bottom, level with the controls (top and bottom); the speakers get the room above. */
 .music-home { display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; }
 /* The speakers' sheet fills down to the progress bar's height and scrolls when there are many. */
-.music-home .music-speakers { flex: 1 1 0; min-height: 0; overflow-y: auto; align-content: start; scrollbar-width: none; scroll-padding: 12px; }
+.music-home .music-speakers { flex: 1 1 0; min-height: 0; overflow-y: auto; align-content: start; scroll-padding: 12px; }
+/* A thin, faint track on the right, only when there are more speakers than fit. */
 .music-home .music-speakers::-webkit-scrollbar { display: none; }
+.music-home .music-speakers { scrollbar-width: none; }
+.music-spk-wrap { position: relative; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.music-spk-track { position: absolute; right: 12px; top: 36px; bottom: 36px; width: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+.music-spk-track.on { opacity: 1; }
+.music-spk-wrap.more .music-speakers { padding-right: 32px; }
+.music-spk-track i { position: absolute; left: 0; right: 0; border-radius: 4px; background: rgba(255, 255, 255, 0.4); transition: top 0.2s ease; }
 .music-home .music-lib-h { margin-top: auto; padding-top: 20px; }
 .music-browse { display: none; flex-direction: column; min-height: 0; flex: 1 1 0; }
 .music.browsing .music-home, .music.queue-open .music-home { display: none; }
