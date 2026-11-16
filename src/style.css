@@ -492,7 +492,11 @@ html.instant .section { transition: none !important; }
 /* ---------- Music panel (sections/music-panel.ts) ---------- */
 .music { position: absolute; inset: 0; display: none; z-index: 45; overflow: hidden; background: #06080a; }
 .music.open { display: block; }
-.music-bg { position: absolute; inset: -60px; background: #0b0e11 center / cover no-repeat; filter: blur(24px) saturate(1.15); opacity: 0.72; transition: background-image 0.4s ease; }
+/* The background takes its colour from the album art (--art-tint, set in music-panel.ts): a soft
+   glow from the art's side over a dark base, fading as the song changes. */
+@property --art-tint-c { syntax: '<color>'; inherits: true; initial-value: rgb(40, 46, 52); }
+.music { --art-tint: 40, 46, 52; --art-tint-c: rgb(var(--art-tint)); transition: --art-tint-c 0.8s ease; }
+.music-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 75% 95% at 22% 45%, color-mix(in srgb, var(--art-tint-c) 55%, transparent), transparent 75%), linear-gradient(160deg, color-mix(in srgb, var(--art-tint-c) 28%, #06080a), #06080a 85%); }
 .music-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 6, 8, 0.45), rgba(4, 6, 8, 0.7)); }
 .music-body { position: absolute; inset: 96px 110px 110px; display: flex; gap: 100px; }
 .music-now { flex: 0 0 600px; width: 600px; min-width: 0; display: flex; flex-direction: column; }

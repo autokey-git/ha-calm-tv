@@ -48,6 +48,67 @@ const FOLDER_ICONS: [RegExp, string][] = [
 const folderIcon = (title: string) =>
   FOLDER_ICONS.find(([re]) => re.test(title))?.[1] ?? lineIcon('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
 
+/**
+ * The album art's most prominent colour, as "r, g, b" (null when it can't be read): the
+ * background is tinted with it. The art is shrunk to 24×24; each pixel votes for its hue (one of
+ * 24), weighted by how colourful it is, and the winning hue's pixels are averaged. Greys barely
+ * vote, so a red cover on a white background still comes out red.
+ */
+function artTint(url: string): Promise<string | null> {
+  if (!url) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onerror = () => resolve(null);
+    img.onload = () => {
+      try {
+        const n = 24;
+        const cv = document.createElement('canvas');
+        cv.width = n;
+        cv.height = n;
+        const cx = cv.getContext('2d');
+
+        if (!cx) return resolve(null);
+        cx.drawImage(img, 0, 0, n, n);
+        const px = cx.getImageData(0, 0, n, n).data;
+        const votes = new Array<number>(24).fill(0);
+        const sums = Array.from({ length: 24 }, () => [0, 0, 0, 0]);
+
+        for (let i = 0; i < px.length; i += 4) {
+          const [r, g, b] = [px[i], px[i + 1], px[i + 2]];
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const chroma = max - min;
+
+          if (max < 30) continue;
+          let h = 0;
+
+          if (chroma) {
+            if (max === r) h = ((g - b) / chroma + 6) % 6;
+            else if (max === g) h = (b - r) / chroma + 2;
+            else h = (r - g) / chroma + 4;
+          }
+          const bin = Math.floor(h * 4) % 24;
+          const w = (chroma / 255) ** 2 + 0.01;
+          votes[bin] += w;
+          sums[bin][0] += r * w;
+          sums[bin][1] += g * w;
+          sums[bin][2] += b * w;
+          sums[bin][3] += w;
+        }
+        const best = votes.indexOf(Math.max(...votes));
+        const [r, g, b, w] = sums[best];
+
+        resolve(w ? `${Math.round(r / w)}, ${Math.round(g / w)}, ${Math.round(b / w)}` : null);
+      } catch {
+        resolve(null); // a picture from another address that doesn't allow reading its pixels
+      }
+    };
+    img.src = url;
+  });
+}
+
 /** A queue entry, as music_assistant.get_queue answers (only the parts used here). */
 interface QueueItem {
   name?: string;
@@ -585,7 +646,9 @@ export class MusicPanel {
     if (pic !== this.artUrl) {
       this.artUrl = pic;
       child(this.el, '.music-art').innerHTML = pic ? `<img src="${esc(pic)}" alt="">` : `<div class="music-art-empty">${ICON.note}</div>`;
-      child(this.el, '.music-bg').style.backgroundImage = pic ? `url("${pic.replace(/"/g, '%22')}")` : 'none';
+      void artTint(pic).then((rgb) => {
+        if (this.artUrl === pic) this.el.style.setProperty('--art-tint', rgb ?? '40, 46, 52');
+      });
     }
     const title = typeof a.media_title === 'string' ? a.media_title : '';
     child(this.el, '.music-title').textContent = title || (s ? (s.state === 'unavailable' ? 'Unavailable' : 'Nothing playing') : 'No speakers');
