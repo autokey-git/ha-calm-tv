@@ -1046,7 +1046,11 @@ export class MusicPanel {
       if (k === 'ArrowLeft') this.ctrl = Math.max(0, this.ctrl - 1);
       if (k === 'ArrowRight') {
         if (this.ctrl < row.length - 1) this.ctrl++;
-        else if (right()) this.area = right()!;
+        else if (right() === 'speakers' && this.cats.length && !this.grouping) {
+          // The library sits level with the controls: right goes straight across to the same row.
+          this.area = 'cats';
+          this.cat = Math.min(this.ctrlRow * CAT_COLS, Math.floor((this.cats.length - 1) / CAT_COLS) * CAT_COLS);
+        } else if (right()) this.area = right()!;
       }
       if (k === 'ArrowDown') {
         if (this.ctrlRow === 0) {
