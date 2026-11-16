@@ -288,6 +288,7 @@ export class MusicPanel {
       <div class="music-hint">Back to close</div>`;
     mount.appendChild(this.el);
     // Every state change in the house arrives here; redraw only when one of the speakers changed.
+    ha.onStatus(() => this.render());
     ha.onEntities(() => {
       if (!this.open) return;
       const sig = this.playersSignature();
@@ -657,7 +658,9 @@ export class MusicPanel {
       });
     }
     const title = typeof a.media_title === 'string' ? a.media_title : '';
-    child(this.el, '.music-title').textContent = title || (s ? (s.state === 'unavailable' ? 'Unavailable' : 'Nothing playing') : 'No speakers');
+    // Without Home Assistant there's nothing to show: say so, not "Unavailable" on every speaker.
+    const offline = ha.status === 'signed-out' ? 'Not connected to Home Assistant' : ha.status === 'connected' ? '' : 'Connecting to Home Assistant…';
+    child(this.el, '.music-title').textContent = offline || title || (s ? (s.state === 'unavailable' ? 'Unavailable' : 'Nothing playing') : 'No speakers');
     child(this.el, '.music-artist').textContent = [a.media_artist, a.media_album_name].filter((x) => typeof x === 'string' && x).join(' · ') || (p?.name ?? '');
 
     const group = this.group();
@@ -692,7 +695,8 @@ export class MusicPanel {
         const e = ha.entities[pl.entity];
         const t = e?.attributes.media_title;
         const inGroup = i !== this.active && group.has(pl.entity);
-        const status = !e || e.state === 'unavailable' ? 'Unavailable'
+        const status = offline ? (ha.status === 'signed-out' ? 'Not connected' : 'Connecting…')
+          : !e || e.state === 'unavailable' ? 'Unavailable'
           : inGroup ? `With ${p?.name ?? ''}`
           : this.grouping && i === this.active ? 'Chosen speaker · OK when done'
           : e.state === 'playing' ? `Playing · ${typeof t === 'string' ? t : ''}` : e.state === 'paused' ? 'Paused' : 'Idle';
