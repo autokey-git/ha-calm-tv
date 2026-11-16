@@ -109,6 +109,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         inFront = false
+        volumeKeysToPage = false
         // Stop a video background while another app or the screensaver is in front.
         js("window.dispatchEvent(new Event('ct-pause'))")
     }
@@ -118,6 +119,14 @@ class MainActivity : Activity() {
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_UP) {
                 js("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
+            }
+            return true
+        }
+        // While the Music panel is open, volume keys turn the speakers' group instead of the TV.
+        if (volumeKeysToPage && (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                val dir = if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) "up" else "down"
+                js("window.dispatchEvent(new CustomEvent('ct-volume',{detail:'$dir'}))")
             }
             return true
         }
@@ -247,6 +256,10 @@ class MainActivity : Activity() {
         /** True while Calm TV is the app on screen. */
         @Volatile
         var inFront = false
+
+        /** Set by the page (NativeBridge.setVolumeKeys) while the Music panel is open. */
+        @Volatile
+        var volumeKeysToPage = false
             private set
     }
 }

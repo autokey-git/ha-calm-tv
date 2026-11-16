@@ -275,6 +275,15 @@ export class MusicPanel {
   private heldGroup = new Map<string, { joined: boolean; until: number }>();
 
   constructor(mount: HTMLElement) {
+    // From the TV app: the remote's volume keys, while this panel is open (see show()).
+    window.addEventListener('ct-resume', () => {
+      if (this.open) native?.setVolumeKeys?.(true);
+    });
+    window.addEventListener('ct-volume', (e) => {
+      if (!this.open || !(e instanceof CustomEvent)) return;
+      for (const ent of this.volumeTargets()) this.stepVolume(ent, e.detail === 'up');
+      this.render();
+    });
     this.el = document.createElement('div');
     this.el.className = 'music';
     this.el.innerHTML = `
@@ -341,6 +350,8 @@ export class MusicPanel {
   show(): void {
     this.players = musicPlayers();
     this.open = true;
+    // The remote's volume keys turn the chosen speaker's group while the panel is open (TV app only).
+    native?.setVolumeKeys?.(true);
     // Start on the speaker that's playing, if any.
     const playing = this.players.findIndex((p) => ha.entities[p.entity]?.state === 'playing');
     this.active = this.spk = Math.max(0, playing);
@@ -358,6 +369,7 @@ export class MusicPanel {
 
   close(): void {
     this.open = false;
+    native?.setVolumeKeys?.(false);
     this.grouping = false;
     clearInterval(this.tick);
     this.el.classList.remove('open');

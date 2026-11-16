@@ -117,6 +117,12 @@ class NativeBridge(private val activity: Activity) {
         HomeButtonService.instance?.hideDoor(id)
     }
 
+    /** While on, the remote's volume keys go to the page (the Music panel) instead of the TV. */
+    @JavascriptInterface
+    fun setVolumeKeys(on: Boolean) {
+        MainActivity.volumeKeysToPage = on
+    }
+
     /** Home Assistant's address, or "" before it's set up. */
     @JavascriptInterface
     fun getHaUrl(): String = Prefs.haUrl(activity)

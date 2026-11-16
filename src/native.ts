@@ -21,6 +21,8 @@ interface CalmTvNative {
   showDoor?(json: string): boolean;
   /** Takes away a door's pop-up that stays ("left open"), by the id it was shown with. */
   hideDoor?(id: string): void;
+  /** While on, the remote's volume keys go to the page as 'ct-volume' events ("up"/"down") instead of the TV. */
+  setVolumeKeys?(on: boolean): void;
   /** Home Assistant's address saved on the TV, or "". */
   getHaUrl?(): string;
   /** Saves Home Assistant's address; returns the cleaned-up address, or "" if invalid. */
