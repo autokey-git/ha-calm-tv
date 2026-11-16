@@ -768,7 +768,11 @@ export class MusicPanel {
       if (k === 'ArrowRight' && this.spk % 2 === 0 && this.spk + 1 < spkCount) this.spk++;
       if (k === 'ArrowLeft') {
         if (this.spk % 2 === 1) this.spk--;
-        else if (!this.grouping) this.area = 'controls';
+        else {
+          // Left out of the speakers goes to the controls; while grouping, that also finishes it.
+          this.grouping = false;
+          this.area = 'controls';
+        }
       }
     } else if (this.area === 'cats') {
       // A grid of library buttons, CAT_COLS across.

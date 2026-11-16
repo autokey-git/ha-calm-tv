@@ -503,8 +503,8 @@ html.instant .section { transition: none !important; }
 .music-progress i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 3px; transition: width 1s linear; }
 .music-times { display: flex; justify-content: space-between; margin-top: 10px; font-size: 20px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 /* Controls and library sit in frosted bars like the dock: one sheet of glass, the focused item lit. */
-.music-controls, .music-cats { -webkit-backdrop-filter: blur(16px) saturate(1.05); backdrop-filter: blur(16px) saturate(1.05); background: var(--veil); box-shadow: var(--plate-edge); }
-html.glass-tint .music-controls, html.glass-tint .music-cats { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
+.music-controls, .music-cats, .music-speakers { -webkit-backdrop-filter: blur(16px) saturate(1.05); backdrop-filter: blur(16px) saturate(1.05); background: var(--veil); box-shadow: var(--plate-edge); }
+html.glass-tint .music-controls, html.glass-tint .music-cats, html.glass-tint .music-speakers { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
 .music-controls { margin-top: 18px; display: flex; align-items: center; justify-content: space-between; height: 104px; padding: 0 12px; border-radius: 40px; }
 .music-controls-2 { margin-top: 12px; height: 88px; gap: 8px; }
 .music-controls-2 .mbtn { width: 72px; height: 72px; border-radius: 24px; }
@@ -512,8 +512,6 @@ html.glass-tint .music-controls, html.glass-tint .music-cats { -webkit-backdrop-
 .music-volbar { flex: 1 1 0; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
 .music-volbar i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 4px; transition: width 0.2s ease; }
 .mbtn.on { color: var(--warm); opacity: 1; }
-.mspk { background: rgba(255, 255, 255, 0.06); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--plate-edge); }
-html.glass-tint .mspk { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.45); }
 .mbtn { width: 80px; height: 80px; flex: 0 0 auto; border-radius: 26px; border: 0; background: transparent; color: var(--ink); opacity: 0.86; display: flex; align-items: center; justify-content: center; transition: background 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease; }
 .mbtn svg { width: 40px; height: 40px; }
 .mbtn.big svg { width: 52px; height: 52px; }
@@ -522,8 +520,11 @@ html.glass-tint .mspk { -webkit-backdrop-filter: none; backdrop-filter: none; ba
 .music-side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .music-h { font-size: 22px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 16px 4px; }
 .music-lib-h { margin-top: 36px; }
-.music-speakers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.mspk { display: flex; align-items: center; gap: 18px; padding: 18px 24px; border-radius: 22px; border: 1px solid transparent; transition: background 0.18s ease, box-shadow 0.18s ease; }
+/* Speakers share one sheet of glass like the library; the focused one is lit like a dock tile. */
+.music-speakers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 12px; border-radius: 40px; }
+.mspk { display: flex; align-items: center; gap: 18px; height: 96px; padding: 0 24px; border-radius: 28px; color: var(--ink-dim); transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease; }
+.mspk .mspk-name { color: var(--ink-dim); transition: color 0.18s ease; }
+.mspk.active .mspk-name, .mspk.grouped .mspk-name, .mspk.focus .mspk-name { color: var(--ink); }
 .mspk-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); flex: 0 0 auto; }
 .mspk.playing .mspk-dot { background: var(--warm); box-shadow: 0 0 12px var(--warm); }
 .mspk-text { min-width: 0; flex: 1 1 0; overflow: hidden; }
@@ -541,10 +542,11 @@ html.glass-tint .mspk { -webkit-backdrop-filter: none; backdrop-filter: none; ba
 .mspk-check { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
 .mspk-check svg { width: 22px; height: 22px; }
 .mspk-check.on { background: var(--warm); border-color: var(--warm); color: #111; }
-.mspk.grouped:not(.focus) { background: rgba(255, 255, 255, 0.1); }
-.music.grouping .music-cats, .music.grouping .music-lib-h { opacity: 0.35; }
-.mspk.active:not(.focus) { background: rgba(255, 255, 255, 0.13); border-color: rgba(255, 255, 255, 0.2); }
-.mspk.focus { background: var(--plate); box-shadow: var(--ring), var(--plate-edge); }
+.mspk.active:not(.focus) { background: rgba(255, 255, 255, 0.05); }
+.mspk.focus { background: var(--plate); box-shadow: var(--plate-edge); }
+/* Grouping is its own little menu: everything but the speakers fades back. */
+.music-now, .music-lib-h, .music-cats { transition: opacity 0.25s ease; }
+.music.grouping .music-now, .music.grouping .music-cats, .music.grouping .music-lib-h { opacity: 0.12; }
 .music-home { display: flex; flex-direction: column; min-height: 0; }
 .music-browse { display: none; flex-direction: column; min-height: 0; flex: 1 1 0; }
 .music.browsing .music-home, .music.queue-open .music-home { display: none; }
