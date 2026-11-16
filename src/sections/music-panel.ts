@@ -416,7 +416,7 @@ export class MusicPanel {
     }
 
     box.innerHTML = this.cats
-      .map((c, i) => `<div class="mcat${this.area === 'cats' && this.cat === i ? ' focus' : ''}">${folderIcon(c.title)}<span>${esc(c.title)}</span></div>`)
+      .map((c, i) => `<div class="mcat${this.area === 'cats' && this.cat === i ? ' focus' : ''}">${folderIcon(c.title)}<span>${esc(norm(c.title) === 'radio' ? 'Radio' : c.title)}</span></div>`)
       .join('');
   }
 
