@@ -41,6 +41,15 @@ export const SensorAttributes = v.object({
   device_class: maybeString,
 });
 
+export const MediaPlayerAttributes = v.object({
+  media_title: maybeString,
+  media_artist: maybeString,
+  entity_picture: maybeString,
+  friendly_name: maybeString,
+  /** The group's leader first, then the speakers following it. */
+  group_members: maybeStrings,
+});
+
 export const WeatherAttributes = v.object({
   temperature: maybeNumber,
 });

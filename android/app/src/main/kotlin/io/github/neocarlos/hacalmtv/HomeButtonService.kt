@@ -21,6 +21,7 @@ import android.view.accessibility.AccessibilityEvent
 class HomeButtonService : AccessibilityService() {
     private var doorbell: DoorbellOverlay? = null
     private var doors: DoorPopups? = null
+    private var panel: SidePanelOverlay? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -30,6 +31,7 @@ class HomeButtonService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         doorbell?.close()
         doors?.close()
+        panel?.close()
         if (instance === this) instance = null
         return super.onUnbind(intent)
     }
@@ -58,6 +60,17 @@ class HomeButtonService : AccessibilityService() {
         Handler(Looper.getMainLooper()).post { doors?.hide(id) }
     }
 
+    private fun toggleSidePanel() {
+        val open = panel
+        if (open != null) {
+            open.close()
+            return
+        }
+        val overlay = SidePanelOverlay(this) { panel = null }
+        panel = overlay
+        overlay.show(MainActivity.pageUrl ?: MainActivity.BUNDLED_URL)
+    }
+
     /** Pauses whatever app is playing (Netflix, YouTube...) the same way a remote's pause button does. */
     private fun pausePlayback() {
         val audio = getSystemService(AudioManager::class.java)
@@ -81,7 +94,16 @@ class HomeButtonService : AccessibilityService() {
             if (event.action == KeyEvent.ACTION_UP) bell.close()
             return true
         }
+        // ★ opens and closes the Home Assistant side panel (instead of Google's own side panel).
+        if (event.keyCode == KeyEvent.KEYCODE_MACRO_1) {
+            if (event.action == KeyEvent.ACTION_UP) toggleSidePanel()
+            return true
+        }
+        // While the side panel is open it gets the arrows, OK and Back; the show keeps the rest.
+        val side = panel
+        if (side != null && side.key(event)) return true
         if (event.keyCode == KeyEvent.KEYCODE_HOME && !Prefs.usingGoogleHome(this)) {
+            side?.close()
             if (event.action == KeyEvent.ACTION_UP) showCalmTv("home key")
             return true
         }

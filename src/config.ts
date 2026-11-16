@@ -187,8 +187,9 @@ const devHaUrl = import.meta.env.DEV ? import.meta.env.VITE_HA_URL ?? '' : '';
 /** Home Assistant's address: set on the TV (Settings or adb), or VITE_HA_URL / the saved one in a browser. */
 function readHaUrl(): string {
   if (native?.getHaUrl) return native.getHaUrl();
-  // The doorbell window over other apps has its own, smaller bridge.
+  // The doorbell window and the ★ side panel over other apps have their own, smaller bridges.
   if (window.CalmTvDoorbell?.getHaUrl) return window.CalmTvDoorbell.getHaUrl();
+  if (window.CalmTvPanel?.getHaUrl) return window.CalmTvPanel.getHaUrl();
 
   try {
     return devHaUrl || localStorage.getItem(HA_URL_KEY) || '';
@@ -265,7 +266,9 @@ export async function loadConfig(): Promise<void> {
   let text = '';
   let source = '';
 
-  const nativeLoad = native?.loadConfig ? () => native!.loadConfig!() : window.CalmTvDoorbell?.loadConfig ? () => window.CalmTvDoorbell!.loadConfig!() : null;
+  const nativeLoad = native?.loadConfig ? () => native!.loadConfig!()
+    : window.CalmTvDoorbell?.loadConfig ? () => window.CalmTvDoorbell!.loadConfig!()
+    : window.CalmTvPanel?.loadConfig ? () => window.CalmTvPanel!.loadConfig!() : null;
 
   if (nativeLoad) {
     let answer;
