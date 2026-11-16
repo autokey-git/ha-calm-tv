@@ -239,6 +239,7 @@ html.glass-tint .gb-veil { background: rgba(8, 14, 18, 0.5); }
 .detail-close { width: 64px; height: 64px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.06); color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; transition: background 0.18s ease, box-shadow 0.18s ease; }
 .detail-close svg { width: 28px; height: 28px; }
 .detail-close.focus { background: var(--plate); box-shadow: var(--ring), var(--plate-edge); }
+.detail-hint { align-self: center; font-size: 20px; color: var(--ink-faint); white-space: nowrap; }
 .detail-cols { display: flex; gap: 44px; align-items: flex-start; }
 .dcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .dcol-title { font-size: 22px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 20px; padding-left: 4px; }
@@ -497,8 +498,8 @@ html.instant .section { transition: none !important; }
    out against it; it fades over when the song changes. */
 @property --art-tint-c { syntax: '<color>'; inherits: true; initial-value: rgb(40, 46, 52); }
 .music { --art-tint: 40, 46, 52; --art-tint-c: rgb(var(--art-tint)); transition: --art-tint-c 0.8s ease; }
-.music-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 110% 130% at 21% 30%, color-mix(in srgb, var(--art-tint-c) 90%, transparent), color-mix(in srgb, var(--art-tint-c) 45%, transparent) 55%, transparent 95%), #06080a; }
-.music-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 6, 8, 0.45), rgba(4, 6, 8, 0.7)); }
+.music-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 110% 130% at 21% 30%, color-mix(in srgb, var(--art-tint-c) 95%, transparent), color-mix(in srgb, var(--art-tint-c) 55%, transparent) 55%, color-mix(in srgb, var(--art-tint-c) 12%, transparent) 95%), #06080a; }
+.music-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 6, 8, 0.1), rgba(4, 6, 8, 0.45)); }
 .music-body { position: absolute; inset: 96px 110px 110px; display: flex; gap: 100px; }
 .music-now { flex: 0 0 600px; width: 600px; min-width: 0; display: flex; flex-direction: column; }
 /* Music Assistant's mark tucked into the top-left corner, clear of the art; it takes no space. */

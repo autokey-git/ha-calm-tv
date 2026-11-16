@@ -55,6 +55,35 @@ const folderIcon = (title: string) =>
  * 24), weighted by how colourful it is, and the winning hue's pixels are averaged. Greys barely
  * vote, so a red cover on a white background still comes out red.
  */
+/**
+ * The cover's colour made bright and colourful enough to show as a glow on a TV: the same hue,
+ * at a fixed lightness and at least moderate saturation, so a dark or muted cover still tints
+ * visibly (greys stay grey). Returns "r, g, b".
+ */
+function vivid(r: number, g: number, b: number): string {
+  const [R, G, B] = [r / 255, g / 255, b / 255];
+  const max = Math.max(R, G, B);
+  const min = Math.min(R, G, B);
+  const d = max - min;
+  let h = 0;
+
+  if (d) {
+    if (max === R) h = ((G - B) / d + 6) % 6;
+    else if (max === G) h = (B - R) / d + 2;
+    else h = (R - G) / d + 4;
+  }
+  const l0 = (max + min) / 2;
+  const s0 = d ? d / (1 - Math.abs(2 * l0 - 1)) : 0;
+  const s = s0 < 0.08 ? s0 : Math.max(s0, 0.7);
+  const l = 0.48;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h % 2) - 1));
+  const m = l - c / 2;
+  const [r1, g1, b1] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x];
+
+  return [r1, g1, b1].map((v) => Math.round((v + m) * 255)).join(', ');
+}
+
 function artTint(url: string): Promise<string | null> {
   if (!url) return Promise.resolve(null);
   // On the TV, Home Assistant's picture comes through the app, so its pixels can be read.
@@ -106,7 +135,7 @@ function artTint(url: string): Promise<string | null> {
         const best = votes.indexOf(Math.max(...votes));
         const [r, g, b, w] = sums[best];
 
-        resolve(w ? `${Math.round(r / w)}, ${Math.round(g / w)}, ${Math.round(b / w)}` : null);
+        resolve(w ? vivid(r / w, g / w, b / w) : null);
       } catch {
         resolve(null); // a picture from another address that doesn't allow reading its pixels
       }
