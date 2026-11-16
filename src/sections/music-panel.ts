@@ -81,7 +81,8 @@ type Area = 'controls' | 'speakers' | 'cats' | 'browse';
 const CONTROLS = ['prev', 'playpause', 'next', 'volDown', 'volUp', 'group'] as const;
 /** A folder's items drawn at most (Music Assistant can list thousands of tracks). */
 const MAX_ITEMS = 500;
-const CAT_COLS = 4;
+/** The library buttons, in order, when calm-tv.json's "library" doesn't name its own: Music Assistant's folders. */
+const DEFAULT_LIBRARY = ['Artists', 'Albums', 'Tracks', 'Playlists', 'Radio', 'Podcasts', 'Audiobooks'];
 const GRID_COLS = 5;
 const VOLUME_STEP = 0.05;
 
@@ -213,15 +214,17 @@ export class MusicPanel {
     this.catsFor = p.entity;
     this.catsMsg = 'Loading…';
     this.renderCats();
-    // calm-tv.json's "library" can name the ones to show; otherwise all of them.
-    const wanted = settings.config.music?.library?.map((s) => s.toLowerCase());
+    // Matched by exact name, so other media sources (Radio Browser, Camera, Text-to-speech…) stay out.
+    const wanted = (settings.config.music?.library?.length ? settings.config.music.library : DEFAULT_LIBRARY).map(norm);
 
     try {
       const root = await this.browse(p.entity);
-      this.cats = (root.children ?? [])
-        .filter((c) => c.can_expand && c.media_content_id)
-        .filter((c) => !wanted?.length || wanted.some((w) => (c.title ?? '').toLowerCase().includes(w)))
-        .map(toItem);
+      const folders = (root.children ?? []).filter((c) => c.can_expand && c.media_content_id);
+      this.cats = wanted.flatMap((w) => {
+        const f = folders.find((c) => norm(c.title ?? '') === w);
+
+        return f ? [toItem(f)] : [];
+      });
       this.catsMsg = this.cats.length ? '' : 'Nothing in the library';
     } catch (e) {
       console.warn('Music library', e);
@@ -413,7 +416,7 @@ export class MusicPanel {
     }
 
     box.innerHTML = this.cats
-      .map((c, i) => `<div class="mcat${this.area === 'cats' && this.cat === i ? ' focus' : ''}">${folderIcon(c.title)}<span>${esc(c.title.replace(/^radio stations?$/i, 'Radio'))}</span></div>`)
+      .map((c, i) => `<div class="mcat${this.area === 'cats' && this.cat === i ? ' focus' : ''}">${folderIcon(c.title)}<span>${esc(c.title)}</span></div>`)
       .join('');
   }
 
@@ -545,7 +548,7 @@ export class MusicPanel {
         if (this.spk + 2 < this.players.length) this.spk += 2;
         else if (this.cats.length && !this.grouping) {
           this.area = 'cats';
-          this.cat = Math.min(this.spk % 2 === 0 ? 0 : CAT_COLS - 1, this.cats.length - 1);
+          this.cat = this.spk % 2 === 0 ? 0 : Math.max(0, this.cats.length - 1);
         }
       }
       if (k === 'ArrowRight' && this.spk % 2 === 0 && this.spk + 1 < this.players.length) this.spk++;
@@ -554,20 +557,16 @@ export class MusicPanel {
         else if (!this.grouping) this.area = 'controls';
       }
     } else if (this.area === 'cats') {
-      const col = this.cat % CAT_COLS;
-
-      if (k === 'ArrowRight' && col < CAT_COLS - 1 && this.cat + 1 < this.cats.length) this.cat++;
+      // One row of buttons.
+      if (k === 'ArrowRight' && this.cat + 1 < this.cats.length) this.cat++;
       if (k === 'ArrowLeft') {
-        if (col > 0) this.cat--;
+        if (this.cat > 0) this.cat--;
         else this.area = 'controls';
       }
-      if (k === 'ArrowDown' && this.cat + CAT_COLS < this.cats.length) this.cat += CAT_COLS;
       if (k === 'ArrowUp') {
-        if (this.cat >= CAT_COLS) this.cat -= CAT_COLS;
-        else {
-          this.area = 'speakers';
-          this.spk = Math.max(0, this.players.length - (col < CAT_COLS / 2 ? (this.players.length % 2 === 0 ? 2 : 1) : 1));
-        }
+        this.area = 'speakers';
+        const lastRow = this.players.length - (this.players.length % 2 === 0 ? 2 : 1);
+        this.spk = Math.min(this.players.length - 1, lastRow + (this.cat >= this.cats.length / 2 ? 1 : 0));
       }
     } else {
       // The browser: a grid that scrolls up and down.
@@ -599,3 +598,6 @@ const toItem = (c: BrowseNode): LibraryItem => ({
   canPlay: !!c.can_play,
   canExpand: !!c.can_expand,
 });
+
+/** Folder names compared without case, and "Radio stations" as "Radio". */
+const norm = (t: string) => t.trim().toLowerCase().replace(/^radio stations?$/, 'radio');

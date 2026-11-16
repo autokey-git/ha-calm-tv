@@ -176,7 +176,7 @@ const demoNode = (title: string, id: string, type: string, art: number, play = t
   ({ title, media_content_id: id, media_content_type: type, can_play: play, can_expand: expand, thumbnail: demoArt(art) });
 
 function browseReply(id: string | undefined): object {
-  if (!id) return { title: 'Music Assistant', children: ['Artists', 'Albums', 'Tracks', 'Playlists', 'Radio stations', 'Audiobooks', 'Podcasts', 'Genres']
+  if (!id) return { title: 'Music Assistant', children: ['Artists', 'Albums', 'Tracks', 'Playlists', 'Radio', 'Podcasts', 'Audiobooks', 'Genres']
     .map((t) => ({ title: t, media_content_id: t.toLowerCase().split(' ')[0], media_content_type: t.toLowerCase(), can_expand: true })) };
 
   const [kind, n] = id.split('/');

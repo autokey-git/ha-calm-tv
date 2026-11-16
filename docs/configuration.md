@@ -151,13 +151,14 @@ It also closes by itself when `ringing` turns off.
 With `music` in the file, a **Music** tile appears at the end of the dock, next to Settings (or wherever an `apps` entry
 `{ "name": "Music", "open": "music" }` puts it). It opens a panel with what the chosen speaker is
 playing (art, title, progress), play/pause, previous/next, volume and grouping, the speakers, and
-library buttons (Artists, Albums, Tracks, Playlists, Radio…). Each button opens a grid you can browse
+a row of library buttons (Artists, Albums, Tracks, Playlists, Radio, Podcasts, Audiobooks). Each button opens a grid you can browse
 into (an artist's albums, an album's tracks, with "Play all") and play from, on the chosen speaker. Made for **Music Assistant**, but it only uses Home
 Assistant's media player services and media browser, so other players work too.
 
 - `players`: the speakers, in order. Leave it out to list every Music Assistant player.
-- `library`: which of the media browser's top folders get a button, matched by name, in the
-  browser's order. Default: all of them; for example `["Albums", "Playlists", "Radio"]`.
+- `library`: which of the media browser's top folders get a button, by exact name, in this order.
+  Default `["Artists", "Albums", "Tracks", "Playlists", "Radio", "Podcasts", "Audiobooks"]` (Music
+  Assistant's), so Home Assistant's other media sources (cameras, text-to-speech…) stay out.
 
 ### `rooms`: the Smart Home bar, in order
 
