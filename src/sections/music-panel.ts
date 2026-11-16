@@ -269,8 +269,6 @@ export class MusicPanel {
   private lastSig = '';
   /** The album art now shown, so a redraw only swaps the picture when it really changes. */
   private artUrl: string | null = null;
-  /** Each cover's colour for the edge of its speakers' squares ("r, g, b"; null while it's read). */
-  private edges = new Map<string, string | null>();
   /** Choosing which speakers play along with the chosen one. */
   private grouping = false;
   /** Speakers just added (true) or taken out (false), shown until HA catches up. */
@@ -503,7 +501,7 @@ export class MusicPanel {
   }
 
   /**
-   * A speaker's cover as a small square edged in the cover's colour, with bars (or, for a speaker
+   * A speaker's cover as a small square, with bars (or, for a speaker
    * playing along, a link) on it. A group whose leader isn't playing shows plain squares instead:
    * the leader with the group icon, the others with the link. An idle speaker can still hold its
    * last cover, so only a playing or paused leader's cover is shown.
@@ -513,17 +511,9 @@ export class MusicPanel {
     const on = e?.state === 'playing' || e?.state === 'paused';
     const pic = on && typeof e.attributes.entity_picture === 'string' ? haPath(e.attributes.entity_picture) : '';
 
-    if (pic && !this.edges.has(pic)) {
-      this.edges.set(pic, null);
-      void artTint(pic, 0.64).then((rgb) => {
-        this.edges.set(pic, rgb);
-        this.render();
-      });
-    }
-    const edge = pic ? this.edges.get(pic) : null;
     const mark = linked ? ICON.link : on ? '<span class="mspk-bars"><i></i><i></i><i></i></span>' : ICON.group;
 
-    return `<span class="mspk-cover${e?.state === 'playing' ? ' moving' : ''}${on ? '' : ' still'}"${edge ? ` style="--edge: rgb(${edge})"` : ''}>${pic ? `<img src="${esc(pic)}" alt="">` : ''}<span class="mspk-over">${mark}</span></span>`;
+    return `<span class="mspk-cover${e?.state === 'playing' ? ' moving' : ''}${on ? '' : ' still'}">${pic ? `<img src="${esc(pic)}" alt="">` : ''}<span class="mspk-over">${mark}</span></span>`;
   }
 
   private group(): Set<string> {
@@ -759,6 +749,8 @@ export class MusicPanel {
       ? `<div class="mspk top${at(-1)}"><span class="mspk-ico">${ICON.check}</span><div class="mspk-text"><div class="mspk-name"><span>Done grouping</span></div><div class="mspk-status"><span>${others.length ? `${others.length + 1} speakers together` : 'Just one speaker'}</span></div></div></div>`
         + `<div class="mspk top${at(EVERYWHERE)}"><span class="mspk-ico">${ICON.everywhere}</span><div class="mspk-text"><div class="mspk-name"><span>${this.allGrouped() ? 'Just this speaker' : 'Play everywhere'}</span></div><div class="mspk-status"><span>${this.allGrouped() ? 'Take the others out' : 'Every speaker plays along'}</span></div></div></div>`
       : `<div class="mspk wide${this.area === 'speakers' && this.spk === -1 ? ' focus' : ''}"><span class="mspk-ico">${ICON.group}</span><div class="mspk-text"><div class="mspk-name"><span>Group speakers</span></div><div class="mspk-status"><span>${others.length ? `${esc(p?.name ?? '')} with ${esc(others.join(', '))}` : `Play what ${esc(p?.name ?? 'this speaker')} is playing in more rooms`}</span></div></div></div>`;
+    const focusPl = this.area === 'speakers' && !this.grouping && !offline ? this.players[this.spk] : undefined;
+    const focusHost = focusPl ? this.leaderOf(focusPl.entity) ?? focusPl.entity : undefined;
     child(this.el, '.music-speakers').innerHTML = groupTile + this.players
       .map((pl, i) => {
         const e = ha.entities[pl.entity];
@@ -778,7 +770,9 @@ export class MusicPanel {
         const leads = !offline && !lead && !!e && e.state !== 'unavailable' && this.players.some((x) => x.entity !== pl.entity && this.leaderOf(x.entity) === pl.entity);
         const live = !offline && !!e && playing(host);
         const marked = live || !!lead || leads;
-        const cls = ['mspk', i === this.active ? 'active' : '', inGroup ? 'grouped' : '', live ? 'live' : '', this.area === 'speakers' && this.spk === i ? 'focus' : ''].join(' ');
+        // The focused speaker's group lights up softly, so it's clear which speakers play together.
+        const mate = !!focusHost && i !== this.spk && host === focusHost && (marked || leads);
+        const cls = ['mspk', i === this.active ? 'active' : '', inGroup ? 'grouped' : '', live ? 'live' : '', mate ? 'mate' : '', this.area === 'speakers' && this.spk === i ? 'focus' : ''].join(' ');
         if (this.slider && this.area === 'speakers' && this.spk === i) {
           const v = this.volumeOf(pl.entity) ?? 0;
 
