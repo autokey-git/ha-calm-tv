@@ -31,6 +31,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         rememberDevUrl(intent)
         rememberHaUrl(intent)
+        rememberMa(intent)
         // Creates /sdcard/Android/data/io.github.neocarlos.hacalmtv/files/, where a config file can be pushed with adb.
         getExternalFilesDir(null)
 
@@ -77,7 +78,7 @@ class MainActivity : Activity() {
     /** Home pressed while Calm TV is already open (or brought back by the Home button service). */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (rememberDevUrl(intent) or rememberHaUrl(intent)) {
+        if (rememberDevUrl(intent) or rememberHaUrl(intent) or rememberMa(intent)) {
             recreate()
             return
         }
@@ -156,6 +157,24 @@ class MainActivity : Activity() {
     }
 
     /**
+     * Hands Music Assistant's address and token to the page without typing (a token is too long
+     * for adb's input text), for the Music panel's full queue:
+     *   adb shell am start -n io.github.neocarlos.hacalmtv/.MainActivity --es maToken <token> --es maUrl http://192.168.1.20:8095
+     * maUrl is optional. The token itself is never logged. Returns true if the intent had one.
+     */
+    private fun rememberMa(intent: Intent?): Boolean {
+        if (intent?.hasExtra(KEY_MA_TOKEN) != true) return false
+        val json = org.json.JSONObject()
+            .put("token", intent.getStringExtra(KEY_MA_TOKEN).orEmpty().trim())
+            .put("url", intent.getStringExtra(KEY_MA_URL).orEmpty().trim())
+        Prefs.setMaHandoff(this, json.toString())
+        Log.i(TAG, "Music Assistant token handed to the page")
+        intent.removeExtra(KEY_MA_TOKEN)
+        intent.removeExtra(KEY_MA_URL)
+        return true
+    }
+
+    /**
      * Demo mode (a made-up home; see src/demo.ts) until the app restarts, e.g. for recording:
      *   adb shell am start -n io.github.neocarlos.hacalmtv/.MainActivity --es demo ""
      *   adb shell am start -n io.github.neocarlos.hacalmtv/.MainActivity --es demo "at=2026-11-14T18:30"
@@ -187,6 +206,8 @@ class MainActivity : Activity() {
         private const val KEY_DEV_URL = "devUrl"
         private const val KEY_HA_URL = "haUrl"
         private const val KEY_DEMO = "demo"
+        private const val KEY_MA_TOKEN = "maToken"
+        private const val KEY_MA_URL = "maUrl"
         const val BUNDLED_URL = "http://appassets.androidplatform.net/assets/web/index.html"
 
         /** The page Calm TV loaded (the dev server in debug builds, if set). */

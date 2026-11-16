@@ -1,4 +1,5 @@
 import { demoMode, settings } from './config';
+import { native } from './native';
 
 // An optional direct line to the Music Assistant server, only for what Home Assistant can't pass
 // along: the whole queue (HA's music_assistant.get_queue gives what's playing and what's next).
@@ -47,8 +48,40 @@ const read = (key: string): string => {
   try { return localStorage.getItem(key) ?? ''; } catch { return ''; }
 };
 
+let handoffChecked = false;
+
+/**
+ * A token handed over with adb (see MainActivity.rememberMa): saved here once, since typing a
+ * long token with adb's input text cuts it off.
+ */
+function takeHandoff(): void {
+  if (handoffChecked) return;
+  handoffChecked = true;
+  let given: { url?: string; token?: string } = {};
+
+  try { given = JSON.parse(native?.takeMaSetup?.() || '{}'); } catch { return; }
+
+  const token = cleanToken(given.token ?? '');
+
+  if (!token) return;
+
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+    const url = cleanMaUrl(given.url ?? '') || localStorage.getItem(URL_KEY) || guessMaUrl();
+
+    if (url) localStorage.setItem(URL_KEY, url);
+  } catch { /* storage off */ }
+
+  // Check it right away, so Settings says whether it worked.
+  window.setTimeout(() => { ma.connect().catch(() => { /* Settings shows the problem */ }); }, 0);
+}
+
 /** The saved server address and token ("" when not set up). */
-export const maSettings = () => ({ url: read(URL_KEY), token: read(TOKEN_KEY) });
+export const maSettings = () => {
+  takeHandoff();
+
+  return { url: read(URL_KEY), token: read(TOKEN_KEY) };
+};
 
 /** True when this TV has Music Assistant set up (or in demo mode, which has a made-up queue). */
 export const maConfigured = () => demoMode || (!!maSettings().url && !!maSettings().token);

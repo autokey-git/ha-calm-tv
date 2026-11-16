@@ -23,6 +23,8 @@ interface CalmTvNative {
   setHaUrl?(url: string): string;
   /** JSON: { source, text } with calm-tv.json's contents, or { error }. */
   loadConfig?(): string;
+  /** Music Assistant's address and token given with adb, as JSON { url, token }, once; "" if none. */
+  takeMaSetup?(): string;
 }
 
 declare global {

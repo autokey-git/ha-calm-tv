@@ -8,6 +8,7 @@ object Prefs {
     private const val FILE = "calmtv"
     private const val KEY_GOOGLE_HOME = "usingGoogleHome"
     private const val KEY_HA_URL = "haUrl"
+    private const val KEY_MA_HANDOFF = "maHandoff"
 
     /**
      * True while you've switched to Google's home screen from Calm TV's Settings.
@@ -18,6 +19,19 @@ object Prefs {
 
     fun setUsingGoogleHome(context: Context, value: Boolean) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_GOOGLE_HOME, value).apply()
+    }
+
+    /** Music Assistant's address and token from adb (see MainActivity), until the page takes them. */
+    fun setMaHandoff(context: Context, json: String) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_MA_HANDOFF, json).apply()
+    }
+
+    /** Returns the handed-off JSON once ("" if none), and forgets it. */
+    fun takeMaHandoff(context: Context): String {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val json = prefs.getString(KEY_MA_HANDOFF, "").orEmpty()
+        if (json.isNotEmpty()) prefs.edit().remove(KEY_MA_HANDOFF).apply()
+        return json
     }
 
     /** Home Assistant's address, e.g. "http://192.168.1.20:8123" ("" until it's set up). */
