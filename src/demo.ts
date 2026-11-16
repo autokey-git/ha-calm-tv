@@ -135,6 +135,7 @@ function initialStates() {
     ['light.driveway', plainLight(false)],
     ['binary_sensor.garage_door', ['off', { device_class: 'garage_door' }]],
     ['binary_sensor.front_door', ['off', { device_class: 'door' }]],
+    ['weather.home', ['partlycloudy', { temperature: 48 }]],
     ['binary_sensor.back_door', ['off', { device_class: 'door' }]],
     ['sensor.garage_temperature', ['54', { unit_of_measurement: '°F', device_class: 'temperature' }]],
     ['binary_sensor.garage_occupancy', ['off', { device_class: 'occupancy' }]],

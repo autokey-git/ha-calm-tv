@@ -126,6 +126,7 @@ export class CalmTv {
       const temperature = w ? attributes(w, WeatherAttributes).temperature : undefined;
       this.home.setOutside(temperature === undefined || !w ? {} : { temp: temperature, condition: conditionLabel(w.state) });
       weather?.setCurrent(temperature === undefined || !w ? null : { condition: w.state, temperature });
+      this.appsSection.setWeather(temperature === undefined || !w ? null : { condition: w.state, temperature });
       this.detail.refresh();
     };
 
