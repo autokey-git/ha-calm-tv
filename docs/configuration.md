@@ -149,7 +149,7 @@ It also closes by itself when `ringing` turns off.
 }
 ```
 
-With `music` in the file, a **Music** tile appears first in the dock (or wherever an `apps` entry
+With `music` in the file, a **Music** tile appears at the end of the dock, next to Settings (or wherever an `apps` entry
 `{ "name": "Music", "open": "music" }` puts it). It opens a panel with what the chosen speaker is
 playing (art, title, progress), play/pause, previous/next and volume, the speakers, and a row of
 playlists to play on the chosen speaker. Made for **Music Assistant**, but it only uses Home

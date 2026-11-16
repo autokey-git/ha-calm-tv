@@ -31,8 +31,8 @@ export function loadApps(): void {
     .map((a): App => (a.open === 'music' ? { ...musicTile, name: a.name, mark: a.icon ? markFor(a.name, a.icon) : musicTile.mark } : { name: a.name, pkg: a.package, mark: markFor(a.name, a.icon) }));
   let list = fromConfig?.length ? fromConfig : lineup;
 
-  // With "music" in calm-tv.json, the Music tile comes first unless "apps" places it.
-  if (settings.config.music && !list.some((a) => a.kind === 'music')) list = [musicTile, ...list];
+  // With "music" in calm-tv.json, the Music tile goes at the end, next to Settings, unless "apps" places it.
+  if (settings.config.music && !list.some((a) => a.kind === 'music')) list = [...list, musicTile];
   const installed = installedPackages();
   apps = [...(installed ? list.filter((a) => !a.pkg || installed.has(a.pkg)) : list), settingsTile];
 }
