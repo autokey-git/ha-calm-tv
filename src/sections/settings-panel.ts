@@ -3,6 +3,8 @@ import { ha } from '../ha';
 import { settings } from '../config';
 import { zones } from '../home-data';
 import { showSetup } from '../setup';
+import { showMaSetup } from '../ma-setup';
+import { ma, maSettings } from '../music-assistant';
 import { child } from '../dom';
 import { apps, hasDockOrder, resetDockOrder } from '../apps';
 import {
@@ -23,6 +25,7 @@ const ICONS = {
   chevron: line('<path d="M9 5l7 7-7 7"/>'),
   ha: line('<path d="M3 11l9-7 9 7"/><path d="M5 9.5V20h14V9.5"/><circle cx="12" cy="14" r="2"/><path d="M12 16v4"/>'),
   link: line('<path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/>'),
+  music: line('<path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>'),
   file: line('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>'),
   gauge: line('<path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.2"/>'),
   video: line('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z"/>'),
@@ -177,6 +180,21 @@ export class SettingsPanel {
             return `${from} · ${rooms}${settings.error ? ` · newest copy has a problem: ${settings.error}` : ''} · OK to reload`;
           },
           run: () => location.reload(),
+        },
+        {
+          icon: ICONS.music,
+          name: 'Music Assistant',
+          status: () => {
+            const { url } = maSettings();
+
+            if (!url) return 'Optional · for the Music panel’s full queue · OK to set up';
+
+            return `${url} · ${ma.problem || (ma.connected ? 'Connected' : 'Set up')} · OK to change`;
+          },
+          run: () => {
+            this.close();
+            showMaSetup();
+          },
         },
       ],
     };

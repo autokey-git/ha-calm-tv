@@ -1,6 +1,8 @@
 import { ha, type ServiceData } from '../ha';
 import { haPath, settings } from '../config';
 import { child } from '../dom';
+import { ma, maConfigured, type MaQueueItem } from '../music-assistant';
+import { showMaSetup } from '../ma-setup';
 
 // The Music panel: Music Assistant (or any media players) through Home Assistant. Opened from the
 // dock's Music tile. Left: what the chosen speaker is playing, with its controls. Right: the
@@ -21,6 +23,7 @@ const ICON = {
   shuffle: wrap('<path d="M16.5 4.5 20 8l-3.5 3.5V9.2h-1.3c-1.2 0-2 .5-2.8 1.6l-4.3 6.1c-1.1 1.6-2.5 2.6-4.6 2.6H3v-2h.5c1.3 0 2.1-.5 2.9-1.7l4.3-6.1c1.1-1.5 2.5-2.5 4.5-2.5h1.3zM3 6.5h.5c2 0 3.4.9 4.4 2.3l.6.8-1.2 1.7-.9-1.3C5.6 8.9 4.8 8.5 3.5 8.5H3zm10.7 8.2 1.2-1.7c.7.9 1.4 1.3 2.3 1.4h.3v-2.3L21 15.5 17.5 19v-2.3h-.4c-1.5-.1-2.5-.8-3.4-2z"/>'),
   queue: wrap('<path d="M3 5.5h13v2H3zM3 10.5h13v2H3zM3 15.5h8v2H3zM14 14.6v5.8a.5.5 0 0 0 .76.43l4.6-2.9a.5.5 0 0 0 0-.86l-4.6-2.9a.5.5 0 0 0-.76.43z"/>'),
   everywhere: wrap('<path d="M2 9.5A1.5 1.5 0 0 1 3.5 8h3A1.5 1.5 0 0 1 8 9.5v9A1.5 1.5 0 0 1 6.5 20h-3A1.5 1.5 0 0 1 2 18.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 3.2a1.8 1.8 0 1 0 0 3.6A1.8 1.8 0 0 0 5 14zM9 5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 18.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 4.2a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4zM16 9.5A1.5 1.5 0 0 1 17.5 8h3A1.5 1.5 0 0 1 22 9.5v9a1.5 1.5 0 0 1-1.5 1.5h-3a1.5 1.5 0 0 1-1.5-1.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 3.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z"/>'),
+  gear: wrap('<path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.4 7.4 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.4l-.4 2.7a7.6 7.6 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6a.5.5 0 0 0-.1.6l2 3.5c.1.2.4.3.6.2l2.5-1c.5.4 1.1.7 1.7 1l.4 2.6c0 .3.2.5.5.5h4c.3 0 .5-.2.5-.4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1c.2.1.5 0 .6-.2l2-3.5a.5.5 0 0 0-.1-.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/>'),
   check: wrap('<path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.1 8.4 18.7 7z"/>'),
   playAll: wrap('<path d="M8 5.6v12.8a.6.6 0 0 0 .92.5l9.7-6.4a.6.6 0 0 0 0-1L8.92 5.1A.6.6 0 0 0 8 5.6z"/>'),
   note: wrap('<path d="M19 3.2v11.3a3.3 3.3 0 1 1-1.8-2.9V7.9L9.8 9.6v7.1a3.3 3.3 0 1 1-1.8-2.9V6.3a1 1 0 0 1 .78-.98l9-2.08A1 1 0 0 1 19 3.2z"/>'),
@@ -51,6 +54,7 @@ interface QueueItem {
 }
 
 interface QueueInfo {
+  queue_id?: string;
   items?: number;
   current_index?: number | null;
   shuffle_enabled?: boolean;
@@ -96,7 +100,10 @@ interface BrowseNode {
   children?: BrowseNode[];
 }
 
-type Area = 'controls' | 'speakers' | 'cats' | 'browse';
+type Area = 'controls' | 'speakers' | 'cats' | 'browse' | 'queue' | 'gear';
+/** Queue items asked of Music Assistant at a time, and at most in all. */
+const QUEUE_PAGE = 100;
+const QUEUE_MAX = 500;
 const CAT_COLS = 3;
 /** The two rows of controls under the art: playback, then volume and grouping. */
 const CONTROL_ROWS = [['shuffle', 'prev', 'playpause', 'next', 'queue'], ['volDown', 'volUp', 'group']] as const;
@@ -137,6 +144,13 @@ export class MusicPanel {
   private queueMsg = '';
   private queueFor = '';
   private queueTitle = '';
+  /** The whole queue, straight from Music Assistant when it's set up on this TV (see music-assistant.ts). */
+  private maQueueId = '';
+  private maItems: MaQueueItem[] = [];
+  /** The queue position of maItems[0]. */
+  private maStart = 0;
+  private maLoading = false;
+  private qFocus = 0;
   private spk = 0;
   private cat = 0;
   /** The browser's folders, outermost first; empty when the speakers and categories show. */
@@ -148,7 +162,9 @@ export class MusicPanel {
   private catsMsg = '';
   private tick = 0;
   /** Volume just set, shown until HA catches up. */
-  private heldVolume: { entity: string; value: number; until: number } | null = null;
+  private heldVolume = new Map<string, { value: number; until: number }>();
+  /** OK on a speaker turns its card into a volume slider: ←/→ change it, OK or Back when done. */
+  private slider = false;
   /** The speakers' states as last drawn (see the constructor). */
   private lastSig = '';
   /** The album art now shown, so a redraw only swaps the picture when it really changes. */
@@ -197,7 +213,8 @@ export class MusicPanel {
           </div>
         </div>
       </div>
-      <div class="music-hint">Back to close</div>`;
+      <div class="music-hint">Back to close</div>
+      <button class="music-gear" aria-label="Music Assistant settings">${ICON.gear}</button>`;
     mount.appendChild(this.el);
     // Every state change in the house arrives here; redraw only when one of the speakers changed.
     ha.onEntities(() => {
@@ -226,6 +243,7 @@ export class MusicPanel {
     this.active = this.spk = Math.max(0, playing);
     this.area = 'speakers';
     this.grouping = false;
+    this.slider = false;
     this.queueOpen = false;
     this.levels = [];
     this.lastSig = this.playersSignature();
@@ -334,15 +352,36 @@ export class MusicPanel {
     if (p) void ha.call('media_player', service, { entity_id: p.entity, ...data });
   }
 
-  private volume(): number | undefined {
-    const p = this.player;
+  /** One speaker's volume (0–1), or the one just set until HA catches up. */
+  private volumeOf(entity: string): number | undefined {
+    const held = this.heldVolume.get(entity);
 
-    if (!p) return undefined;
-
-    if (this.heldVolume && this.heldVolume.entity === p.entity && this.heldVolume.until > Date.now()) return this.heldVolume.value;
-    const v = ha.entities[p.entity]?.attributes.volume_level;
+    if (held && held.until > Date.now()) return held.value;
+    const v = ha.entities[entity]?.attributes.volume_level;
 
     return typeof v === 'number' ? v : undefined;
+  }
+
+  /** The speakers the volume buttons turn: every speaker in the group, not only the chosen one. */
+  private volumeTargets(): string[] {
+    return [...this.group()].filter((e) => ha.entities[e]?.state !== 'unavailable' && this.volumeOf(e) !== undefined);
+  }
+
+  /** The volume bar under the controls: the chosen speaker's, or the group's average. */
+  private volume(): number | undefined {
+    const vols = this.volumeTargets().map((e) => this.volumeOf(e)!);
+
+    return vols.length ? vols.reduce((a, b) => a + b, 0) / vols.length : undefined;
+  }
+
+  /** Turns one speaker up or down a step. */
+  private stepVolume(entity: string, up: boolean): void {
+    const now = this.volumeOf(entity);
+
+    if (now === undefined) return;
+    const value = Math.round(Math.min(1, Math.max(0, now + (up ? VOLUME_STEP : -VOLUME_STEP))) * 100) / 100;
+    this.heldVolume.set(entity, { value, until: Date.now() + 4000 });
+    void ha.call('media_player', 'volume_set', { entity_id: entity, volume_level: value });
   }
 
   /** The speakers playing together with the chosen one (the chosen one included). */
@@ -427,6 +466,8 @@ export class MusicPanel {
       });
       this.queue = reply.response?.[p.entity] ?? null;
       this.queueMsg = this.queue ? '' : 'No queue';
+
+      if (this.queue && maConfigured()) void this.loadFullQueue(p, this.queue);
     } catch (e) {
       console.warn('Music queue', e);
       this.queue = null;
@@ -436,11 +477,63 @@ export class MusicPanel {
     this.renderQueue();
   }
 
+  /** The rest of the queue after the current song, from Music Assistant itself. */
+  private async loadFullQueue(p: Player, q: QueueInfo): Promise<void> {
+    const start = (q.current_index ?? -1) + 1;
+
+    try {
+      let id = q.queue_id ?? '';
+
+      // Older Home Assistant doesn't say which queue it is: find it by the speaker's name.
+      if (!id) {
+        const name = String(ha.entities[p.entity]?.attributes.friendly_name ?? p.name).toLowerCase();
+        const all = await ma.queues();
+        id = (all.find((x) => x.display_name?.toLowerCase() === name) ?? all.find((x) => x.display_name?.toLowerCase() === p.name.toLowerCase()))?.queue_id ?? '';
+      }
+
+      if (!id) return;
+      const items = await ma.items(id, start, QUEUE_PAGE);
+
+      if (this.queueFor !== p.entity) return;
+      this.maQueueId = id;
+      this.maStart = start;
+      this.maItems = items;
+      this.qFocus = Math.min(this.qFocus, Math.max(0, items.length - 1));
+    } catch (e) {
+      console.warn('Music Assistant queue', e);
+      this.maItems = [];
+    }
+
+    this.renderQueue();
+  }
+
+  /** The next page, when the remote gets near the end of what's loaded. */
+  private async moreQueue(): Promise<void> {
+    const q = this.queue;
+
+    if (this.maLoading || !this.maQueueId || !q?.items || this.maItems.length >= QUEUE_MAX) return;
+
+    if (this.maStart + this.maItems.length >= q.items) return;
+    this.maLoading = true;
+
+    try {
+      const more = await ma.items(this.maQueueId, this.maStart + this.maItems.length, QUEUE_PAGE);
+      this.maItems = [...this.maItems, ...more];
+    } catch (e) {
+      console.warn('Music Assistant queue', e);
+    }
+
+    this.maLoading = false;
+    this.renderQueue();
+  }
+
   private toggleQueue(): void {
     this.queueOpen = !this.queueOpen;
 
     if (this.queueOpen) {
       this.queue = null;
+      this.maItems = [];
+      this.qFocus = 0;
       void this.loadQueue();
     }
   }
@@ -454,12 +547,9 @@ export class MusicPanel {
       case 'playpause': this.act(state === 'playing' ? 'media_pause' : 'media_play'); break;
       case 'volDown':
       case 'volUp': {
-        const now = this.volume();
-
-        if (now === undefined || !this.player) break;
-        const value = Math.round(Math.min(1, Math.max(0, now + (c === 'volUp' ? VOLUME_STEP : -VOLUME_STEP))) * 100) / 100;
-        this.heldVolume = { entity: this.player.entity, value, until: Date.now() + 4000 };
-        this.act('volume_set', { volume_level: value });
+        // Each speaker in the group moves a step from its own level (Music Assistant's
+        // volume_set on the chosen speaker alone leaves the others where they were).
+        for (const e of this.volumeTargets()) this.stepVolume(e, c === 'volUp');
         break;
       }
       case 'group': this.startGrouping(); break;
@@ -503,6 +593,7 @@ export class MusicPanel {
     child(this.el, '.music-group').innerHTML = others.length ? `${ICON.group}<span>Also on ${esc(others.join(', '))}</span>` : '';
     child(this.el, '.music-spk-h').textContent = this.grouping ? `Play on ${p?.name ?? ''} and… · OK to add or remove · Back when done` : 'Speakers';
     this.el.classList.toggle('grouping', this.grouping);
+    this.el.classList.toggle('sliding', this.slider);
 
     const focused = this.area === 'controls' ? CONTROL_ROWS[this.ctrlRow][this.ctrl] : null;
     this.el.querySelectorAll<HTMLElement>('.mbtn').forEach((b) => {
@@ -512,6 +603,7 @@ export class MusicPanel {
       b.classList.toggle('on', (c === 'shuffle' && a.shuffle === true) || (c === 'queue' && this.queueOpen) || (c === 'group' && others.length > 0));
       b.classList.toggle('focus', c === focused);
     });
+    child(this.el, '.music-gear').classList.toggle('focus', this.area === 'gear');
     const vol = this.volume();
     child(this.el, '.music-vol').textContent = vol === undefined ? '' : `${Math.round(vol * 100)}%`;
     child(this.el, '.music-volbar i').style.width = `${Math.round((vol ?? 0) * 100)}%`;
@@ -526,6 +618,12 @@ export class MusicPanel {
           : this.grouping && i === this.active ? 'Chosen speaker · OK when done'
           : e.state === 'playing' ? `Playing · ${typeof t === 'string' ? t : ''}` : e.state === 'paused' ? 'Paused' : 'Idle';
         const cls = ['mspk', i === this.active ? 'active' : '', inGroup ? 'grouped' : '', e?.state === 'playing' ? 'playing' : '', this.area === 'speakers' && this.spk === i ? 'focus' : ''].join(' ');
+        if (this.slider && this.area === 'speakers' && this.spk === i) {
+          const v = this.volumeOf(pl.entity) ?? 0;
+
+          return `<div class="${cls} sliding"><span class="mspk-ico">${ICON.volUp}</span><div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div>`
+            + `<div class="mspk-slider"><div class="mspk-bar"><i style="width:${Math.round(v * 100)}%"></i></div><span class="mspk-pct">${Math.round(v * 100)}%</span></div></div></div>`;
+        }
         const mark = this.grouping ? `<span class="mspk-check${i === this.active || inGroup ? ' on' : ''}">${i === this.active || inGroup ? ICON.check : ''}</span>` : '<span class="mspk-dot"></span>';
 
         return `<div class="${cls}">${mark}<div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div><div class="mspk-status"><span>${esc(status)}</span></div></div></div>`;
@@ -579,9 +677,31 @@ export class MusicPanel {
       q.repeat_mode && q.repeat_mode !== 'off' ? `Repeat ${q.repeat_mode}` : '',
     ].filter(Boolean).join(' · ') : '';
 
+    if (q && this.maItems.length) {
+      // The whole queue from Music Assistant: a list to scroll through and jump into.
+      const list = this.maItems.map((it, i) => {
+        const m = it.media_item;
+        const img = ma.image(it);
+        const artists = (m?.artists ?? []).map((x) => x.name).filter(Boolean).join(', ');
+
+        return `<div class="mql${this.area === 'queue' && this.qFocus === i ? ' focus' : ''}">`
+          + `<div class="mql-art">${img ? `<img loading="lazy" src="${esc(img)}" alt="" onerror="this.remove()">` : ''}${ICON.note}</div>`
+          + `<div class="mql-text"><div class="mql-name">${esc(m?.name ?? it.name ?? '')}</div><div class="mql-sub">${esc(artists)}</div></div>`
+          + `<div class="mq-time">${it.duration ? mmss(it.duration) : ''}</div></div>`;
+      }).join('');
+      box.innerHTML = `<div class="music-h">Queue · ${esc(this.player?.name ?? '')}</div>`
+        + row('Now playing', q.current_item)
+        + `<div class="mq-h">Up next${facts ? ` · ${esc(facts)}` : ''}</div>`
+        + `<div class="mq-list">${list}</div>`;
+      box.querySelector<HTMLElement>('.mql.focus')?.scrollIntoView({ block: 'nearest' });
+
+      return;
+    }
+
     box.innerHTML = `<div class="music-h">Queue · ${esc(this.player?.name ?? '')}</div>`
       + (q ? row('Now playing', q.current_item) + (q.next_item ? row('Up next', q.next_item) : '<div class="mq-h">Up next</div><div class="music-lib-msg">Nothing after this one</div>')
         + (facts ? `<div class="mq-facts">${esc(facts)}</div>` : '')
+        + (maConfigured() ? '' : '<div class="mq-facts mq-tip">To see the whole queue, connect Music Assistant: the gear at the bottom right.</div>')
         : `<div class="music-lib-msg">${esc(this.queueMsg)}</div>`);
   }
 
@@ -605,7 +725,7 @@ export class MusicPanel {
   private renderBrowse(): void {
     const level = this.levels.at(-1);
     this.el.classList.toggle('browsing', !!level);
-    child(this.el, '.music-hint').textContent = level ? 'Back to go back' : this.grouping ? 'Back when done' : this.queueOpen ? 'Back to close the queue' : 'Back to close';
+    child(this.el, '.music-hint').textContent = level ? 'Back to go back' : this.slider ? '← → volume · OK when done' : this.grouping ? 'Back when done' : this.queueOpen ? 'Back to close the queue' : 'Back to close';
 
     if (!level) {
       this.drawnLevel = null;
@@ -671,6 +791,13 @@ export class MusicPanel {
         return;
       }
 
+      if (this.slider) {
+        this.slider = false;
+        this.render();
+
+        return;
+      }
+
       if (this.grouping) {
         this.grouping = false;
         this.render();
@@ -680,6 +807,7 @@ export class MusicPanel {
 
       if (this.queueOpen) {
         this.queueOpen = false;
+        if (this.area === 'queue') this.area = 'controls';
         this.render();
 
         return;
@@ -694,8 +822,34 @@ export class MusicPanel {
     e.preventDefault();
     const spkCount = this.players.length + (this.grouping ? 1 : 0);
 
+    if (this.slider) {
+      const pl = this.players[this.spk];
+
+      if ((k === 'ArrowLeft' || k === 'ArrowRight') && pl) this.stepVolume(pl.entity, k === 'ArrowRight');
+      else this.slider = false;
+      this.render();
+
+      return;
+    }
+
     if (k === 'Enter' || k === ' ') {
       if (this.area === 'controls') this.press(CONTROL_ROWS[this.ctrlRow][this.ctrl]);
+      else if (this.area === 'gear') {
+        showMaSetup(() => {
+          // Connected just now: fetch the whole queue if it's showing.
+          if (this.queueOpen) void this.loadQueue();
+          this.render();
+        });
+      } else if (this.area === 'queue') {
+        const it = this.maItems[this.qFocus];
+
+        if (it && this.maQueueId) {
+          void ma.playIndex(this.maQueueId, it.queue_item_id).catch((err) => console.warn('Music Assistant play', err));
+          // The list starts after the new song once Home Assistant reports it.
+          this.qFocus = 0;
+          this.area = 'controls';
+        }
+      }
       else if (this.area === 'speakers' && this.grouping) {
         const pl = this.players[this.spk];
 
@@ -703,8 +857,13 @@ export class MusicPanel {
         else if (this.spk === this.active) this.grouping = false;
         else if (pl) this.toggleGroup(pl.entity);
       } else if (this.area === 'speakers') {
-        this.active = this.spk;
-        void this.loadCats();
+        const pl = this.players[this.spk];
+        // OK picks the speaker and opens its own volume slider.
+        if (this.spk !== this.active) {
+          this.active = this.spk;
+          void this.loadCats();
+        }
+        this.slider = !!pl && ha.entities[pl.entity]?.state !== 'unavailable' && this.volumeOf(pl.entity) !== undefined;
       } else if (this.area === 'cats') {
         const c = this.cats[this.cat];
 
@@ -724,7 +883,7 @@ export class MusicPanel {
     }
 
     // What's on the right: the browser, the queue (nothing to focus), or speakers and library.
-    const right = (): Area | null => (this.levels.length ? 'browse' : this.queueOpen ? null : 'speakers');
+    const right = (): Area | null => (this.levels.length ? 'browse' : this.queueOpen ? (this.maItems.length ? 'queue' : null) : 'speakers');
 
     if (this.area === 'controls') {
       const row = CONTROL_ROWS[this.ctrlRow];
@@ -734,15 +893,18 @@ export class MusicPanel {
         if (this.ctrl < row.length - 1) this.ctrl++;
         else if (right()) this.area = right()!;
       }
-      if (k === 'ArrowDown' && this.ctrlRow === 0) {
-        this.ctrlRow = 1;
-        this.ctrl = Math.min(this.ctrl, CONTROL_ROWS[1].length - 1);
+      if (k === 'ArrowDown') {
+        if (this.ctrlRow === 0) {
+          this.ctrlRow = 1;
+          this.ctrl = Math.min(this.ctrl, CONTROL_ROWS[1].length - 1);
+        } else this.area = 'gear';
       }
       if (k === 'ArrowUp') {
         if (this.ctrlRow === 1) {
           this.ctrlRow = 0;
           this.ctrl = Math.min(this.ctrl + 1, CONTROL_ROWS[0].length - 1);
         } else if (right() === 'browse') this.area = 'browse';
+        else if (right() === 'queue') this.area = 'queue';
         else if (right() === 'speakers') {
           // Up from the controls goes to the library (or the speakers if there's no library).
           if (this.cats.length && !this.grouping) {
@@ -754,6 +916,13 @@ export class MusicPanel {
           }
         }
       }
+    } else if (this.area === 'gear') {
+      if (k === 'ArrowUp' || k === 'ArrowLeft') this.area = 'controls';
+    } else if (this.area === 'queue') {
+      if (k === 'ArrowLeft') this.area = 'controls';
+      if (k === 'ArrowUp') this.qFocus = Math.max(0, this.qFocus - 1);
+      if (k === 'ArrowDown') this.qFocus = Math.min(this.maItems.length - 1, this.qFocus + 1);
+      if (this.qFocus > this.maItems.length - 10) void this.moreQueue();
     } else if (this.area === 'speakers') {
       // Two columns of speakers (plus "Play everywhere" while grouping).
       if (k === 'ArrowUp') this.spk = Math.max(this.spk % 2, this.spk - 2);

@@ -9,6 +9,7 @@ import type { CalendarEvent, CalendarResponse, ForecastEntry, ForecastMessage } 
 import { videos } from './videos';
 import { wallpapers } from './wallpapers';
 import { showRemote } from './demo-remote';
+import { ma } from './music-assistant';
 import artA from './wallpapers/00-mountain-lake-sunset.jpg?url';
 import artB from './wallpapers/01-stylized-forest-brook.jpg?url';
 
@@ -423,7 +424,7 @@ class DemoHome {
           return { name: t.title, duration: t.duration, media_item: { name: t.title, image: demoArt(i % DEMO_TRACKS.length), artists: [{ name: t.artist }], album: { name: t.album } } };
         };
 
-        return { response: { [id]: { items: 14, current_index: 3, shuffle_enabled: !!s.attributes.shuffle, repeat_mode: 'off', current_item: now < 0 ? null : item(now), next_item: now < 0 ? null : item(now + 1) } } };
+        return { response: { [id]: { queue_id: id, items: 14, current_index: 3, shuffle_enabled: !!s.attributes.shuffle, repeat_mode: 'off', current_item: now < 0 ? null : item(now), next_item: now < 0 ? null : item(now + 1) } } };
       }
       case 'media_player.join': {
         // Like Music Assistant: the leader and every member list the whole group.
@@ -525,6 +526,22 @@ function caption(title: string, detail = ''): void {
 
 /** Switches the app to the made-up home. Call before the screens are built. */
 export function startDemo(): void {
+  // A made-up Music Assistant for the Music panel's full queue: 14 songs, playing the 4th.
+  const songs = ['Slow Tide', 'Paper Lanterns', 'Northern Window', 'Low Sun', 'Harbour Bells', 'Glass Garden', 'Still Water', 'Cedar Smoke', 'Morning Ferry', 'Long Shadows', 'Blue Hour', 'Salt Air', 'Quiet Streets', 'Last Light'];
+  ma.demo = (command, args) => {
+    if (command === 'player_queues/items') {
+      const offset = Number(args.offset ?? 0);
+
+      return songs.slice(offset, offset + Number(args.limit ?? 100)).map((name, j) => {
+        const i = offset + j;
+        const t = DEMO_TRACKS[i % DEMO_TRACKS.length];
+
+        return { queue_item_id: `q${i}`, name, duration: 180 + ((i * 37) % 90), demoArt: demoArt(i), media_item: { name, artists: [{ name: t.artist }] } };
+      });
+    }
+
+    return null;
+  };
   const clock = new URLSearchParams(location.search).get('at');
 
   if (clock) setClock(clock);
