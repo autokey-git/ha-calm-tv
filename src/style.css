@@ -540,7 +540,8 @@ html.glass-tint .music-controls, html.glass-tint .music-cats, html.glass-tint .m
 .mspk-ico { width: 34px; height: 34px; flex: 0 0 auto; display: flex; color: var(--ink); }
 .mspk-ico svg { width: 34px; height: 34px; }
 .mspk.everywhere { grid-column: span 1; }
-.mspk.wide { grid-column: 1 / -1; }
+.mspk.wide { grid-column: 1 / -1; justify-content: center; }
+.mspk.wide .mspk-text { flex: 0 1 auto; }
 .mspk.wide, .mspk.top { height: 80px; }
 .music-note { margin: -8px 0 14px 4px; font-size: 19px; color: var(--ink-faint); }
 .mspk-name { font-size: 26px; font-weight: 600; white-space: nowrap; overflow: hidden; }
