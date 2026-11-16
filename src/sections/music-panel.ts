@@ -24,6 +24,7 @@ const ICON = {
   shuffle: wrap('<path d="M16.5 4.5 20 8l-3.5 3.5V9.2h-1.3c-1.2 0-2 .5-2.8 1.6l-4.3 6.1c-1.1 1.6-2.5 2.6-4.6 2.6H3v-2h.5c1.3 0 2.1-.5 2.9-1.7l4.3-6.1c1.1-1.5 2.5-2.5 4.5-2.5h1.3zM3 6.5h.5c2 0 3.4.9 4.4 2.3l.6.8-1.2 1.7-.9-1.3C5.6 8.9 4.8 8.5 3.5 8.5H3zm10.7 8.2 1.2-1.7c.7.9 1.4 1.3 2.3 1.4h.3v-2.3L21 15.5 17.5 19v-2.3h-.4c-1.5-.1-2.5-.8-3.4-2z"/>'),
   queue: wrap('<path d="M3 5.5h13v2H3zM3 10.5h13v2H3zM3 15.5h8v2H3zM14 14.6v5.8a.5.5 0 0 0 .76.43l4.6-2.9a.5.5 0 0 0 0-.86l-4.6-2.9a.5.5 0 0 0-.76.43z"/>'),
   everywhere: wrap('<path d="M2 9.5A1.5 1.5 0 0 1 3.5 8h3A1.5 1.5 0 0 1 8 9.5v9A1.5 1.5 0 0 1 6.5 20h-3A1.5 1.5 0 0 1 2 18.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 3.2a1.8 1.8 0 1 0 0 3.6A1.8 1.8 0 0 0 5 14zM9 5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 18.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 4.2a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4zM16 9.5A1.5 1.5 0 0 1 17.5 8h3A1.5 1.5 0 0 1 22 9.5v9a1.5 1.5 0 0 1-1.5 1.5h-3a1.5 1.5 0 0 1-1.5-1.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 3.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z"/>'),
+  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>',
   check: wrap('<path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.1 8.4 18.7 7z"/>'),
   playAll: wrap('<path d="M8 5.6v12.8a.6.6 0 0 0 .92.5l9.7-6.4a.6.6 0 0 0 0-1L8.92 5.1A.6.6 0 0 0 8 5.6z"/>'),
   note: wrap('<path d="M19 3.2v11.3a3.3 3.3 0 1 1-1.8-2.9V7.9L9.8 9.6v7.1a3.3 3.3 0 1 1-1.8-2.9V6.3a1 1 0 0 1 .78-.98l9-2.08A1 1 0 0 1 19 3.2z"/>'),
@@ -60,7 +61,7 @@ const folderIcon = (title: string) =>
  * at a fixed lightness and at least moderate saturation, so a dark or muted cover still tints
  * visibly (greys stay grey). Returns "r, g, b".
  */
-function vivid(r: number, g: number, b: number): string {
+function vivid(r: number, g: number, b: number, l = 0.48): string {
   const [R, G, B] = [r / 255, g / 255, b / 255];
   const max = Math.max(R, G, B);
   const min = Math.min(R, G, B);
@@ -75,7 +76,6 @@ function vivid(r: number, g: number, b: number): string {
   const l0 = (max + min) / 2;
   const s0 = d ? d / (1 - Math.abs(2 * l0 - 1)) : 0;
   const s = s0 < 0.08 ? s0 : Math.max(s0, 0.7);
-  const l = 0.48;
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const x = c * (1 - Math.abs((h % 2) - 1));
   const m = l - c / 2;
@@ -84,7 +84,7 @@ function vivid(r: number, g: number, b: number): string {
   return [r1, g1, b1].map((v) => Math.round((v + m) * 255)).join(', ');
 }
 
-function artTint(url: string): Promise<string | null> {
+function artTint(url: string, lightness?: number): Promise<string | null> {
   if (!url) return Promise.resolve(null);
   // On the TV, Home Assistant's picture comes through the app, so its pixels can be read.
   const readable = native && new URL(url, location.href).origin !== location.origin ? `/calmtv-art?u=${encodeURIComponent(url)}` : url;
@@ -135,7 +135,7 @@ function artTint(url: string): Promise<string | null> {
         const best = votes.indexOf(Math.max(...votes));
         const [r, g, b, w] = sums[best];
 
-        resolve(w ? vivid(r / w, g / w, b / w) : null);
+        resolve(w ? vivid(r / w, g / w, b / w, lightness) : null);
       } catch {
         resolve(null); // a picture from another address that doesn't allow reading its pixels
       }
@@ -269,6 +269,8 @@ export class MusicPanel {
   private lastSig = '';
   /** The album art now shown, so a redraw only swaps the picture when it really changes. */
   private artUrl: string | null = null;
+  /** Each cover's colour for the edge of its speakers' squares ("r, g, b"; null while it's read). */
+  private edges = new Map<string, string | null>();
   /** Choosing which speakers play along with the chosen one. */
   private grouping = false;
   /** Speakers just added (true) or taken out (false), shown until HA catches up. */
@@ -486,6 +488,38 @@ export class MusicPanel {
   }
 
   /** The speakers playing together with the chosen one (the chosen one included). */
+  /**
+   * The speaker this one plays along with, or none if it leads or plays alone. Home Assistant
+   * lists a group's members with the leader first; the chosen speaker's own changes show at once.
+   */
+  private leaderOf(entity: string): string | undefined {
+    const p = this.player;
+
+    if (p && entity !== p.entity && this.group().has(entity)) return p.entity;
+    const members = ha.entities[entity]?.attributes.group_members;
+    const lead = Array.isArray(members) ? members[0] : undefined;
+
+    return typeof lead === 'string' && lead !== entity && this.players.some((pl) => pl.entity === lead) ? lead : undefined;
+  }
+
+  /** A speaker's cover as a small square edged in the cover's colour, with bars or a link on it. */
+  private cover(entity: string, linked: boolean): string {
+    const e = ha.entities[entity];
+    const pic = typeof e?.attributes.entity_picture === 'string' ? haPath(e.attributes.entity_picture) : '';
+
+    if (pic && !this.edges.has(pic)) {
+      this.edges.set(pic, null);
+      void artTint(pic, 0.64).then((rgb) => {
+        this.edges.set(pic, rgb);
+        this.render();
+      });
+    }
+    const edge = pic ? this.edges.get(pic) : null;
+    const mark = linked ? ICON.link : '<span class="mspk-bars"><i></i><i></i><i></i></span>';
+
+    return `<span class="mspk-cover${e?.state === 'playing' ? ' moving' : ''}"${edge ? ` style="--edge: rgb(${edge})"` : ''}>${pic ? `<img src="${esc(pic)}" alt="">` : ''}<span class="mspk-over">${mark}</span></span>`;
+  }
+
   private group(): Set<string> {
     const p = this.player;
 
@@ -727,16 +761,21 @@ export class MusicPanel {
         const status = offline ? (ha.status === 'signed-out' ? 'Not connected' : 'Connecting…')
           : !e || e.state === 'unavailable' ? 'Unavailable'
           : inGroup ? `With ${p?.name ?? ''}`
+          : this.leaderOf(pl.entity) ? `With ${this.players.find((x) => x.entity === this.leaderOf(pl.entity))?.name ?? ''}`
           : this.grouping && i === this.active ? 'Chosen speaker · OK when done'
           : e.state === 'playing' ? `Playing · ${typeof t === 'string' ? t : ''}` : e.state === 'paused' ? 'Paused' : 'Idle';
-        const cls = ['mspk', i === this.active ? 'active' : '', inGroup ? 'grouped' : '', e?.state === 'playing' ? 'playing' : '', this.area === 'speakers' && this.spk === i ? 'focus' : ''].join(' ');
+        // Playing (or paused) speakers show their cover; ones playing along show their leader's.
+        const lead = offline || !e || e.state === 'unavailable' ? undefined : this.leaderOf(pl.entity);
+        const live = !offline && !!e && (!!lead || e.state === 'playing' || e.state === 'paused');
+        const cls = ['mspk', i === this.active ? 'active' : '', inGroup ? 'grouped' : '', live ? 'live' : '', this.area === 'speakers' && this.spk === i ? 'focus' : ''].join(' ');
         if (this.slider && this.area === 'speakers' && this.spk === i) {
           const v = this.volumeOf(pl.entity) ?? 0;
 
           return `<div class="${cls} sliding"><span class="mspk-ico">${ICON.volUp}</span><div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div>`
             + `<div class="mspk-slider"><div class="mspk-bar"><i style="width:${Math.round(v * 100)}%"></i></div><span class="mspk-pct">${Math.round(v * 100)}%</span></div></div></div>`;
         }
-        const mark = this.grouping ? `<span class="mspk-check${i === this.active || inGroup ? ' on' : ''}">${i === this.active || inGroup ? ICON.check : ''}</span>` : '<span class="mspk-dot"></span>';
+        const mark = this.grouping ? `<span class="mspk-check${i === this.active || inGroup ? ' on' : ''}">${i === this.active || inGroup ? ICON.check : ''}</span>`
+          : live ? this.cover(lead ?? pl.entity, !!lead) : '<span class="mspk-dot"></span>';
 
         return `<div class="${cls}">${mark}<div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div><div class="mspk-status"><span>${esc(status)}</span></div></div></div>`;
       })
