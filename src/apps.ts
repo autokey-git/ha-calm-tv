@@ -1,7 +1,7 @@
 import type { App } from './types';
 import { icon } from './icons';
 import { installedPackages } from './native';
-import { haPath, settings } from './config';
+import { demoMode, haPath, settings } from './config';
 
 // The built-in dock lineup, used when calm-tv.json has no "apps", in order. Each `mark` is a brand SVG from src/icons/,
 // recolored to white in CSS. `pkg` is the Android TV package the tile opens.
@@ -39,7 +39,8 @@ export function loadApps(): void {
 
 // ---------- your own order (Settings → Arrange dock), kept on this TV ----------
 
-const ORDER_KEY = 'calmtv.dockOrder';
+// Demo mode keeps its own, like state.ts and look.ts, so trying the demo on a real TV leaves its dock alone.
+const ORDER_KEY = demoMode ? 'calmtv.demo.dockOrder' : 'calmtv.dockOrder';
 
 /** What identifies a tile in the saved order. */
 export const tileKey = (a: App) => a.pkg ?? a.kind ?? a.name;

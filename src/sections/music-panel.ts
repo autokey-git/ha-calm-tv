@@ -120,6 +120,10 @@ export class MusicPanel {
   private tick = 0;
   /** Volume just set, shown until HA catches up. */
   private heldVolume: { entity: string; value: number; until: number } | null = null;
+  /** The speakers' states as last drawn (see the constructor). */
+  private lastSig = '';
+  /** The album art now shown, so a redraw only swaps the picture when it really changes. */
+  private artUrl: string | null = null;
   /** Choosing which speakers play along with the chosen one. */
   private grouping = false;
   /** Speakers just added (true) or taken out (false), shown until HA catches up. */
@@ -159,7 +163,15 @@ export class MusicPanel {
       </div>
       <div class="music-hint">Back to close</div>`;
     mount.appendChild(this.el);
-    ha.onEntities(() => { if (this.open) this.render(); });
+    // Every state change in the house arrives here; redraw only when one of the speakers changed.
+    ha.onEntities(() => {
+      if (!this.open) return;
+      const sig = this.playersSignature();
+
+      if (sig === this.lastSig) return;
+      this.lastSig = sig;
+      this.render();
+    });
   }
 
   isOpen(): boolean {
@@ -175,6 +187,7 @@ export class MusicPanel {
     this.area = 'speakers';
     this.grouping = false;
     this.levels = [];
+    this.lastSig = this.playersSignature();
     this.el.classList.add('open');
     this.render();
     void this.loadCats();
@@ -186,6 +199,10 @@ export class MusicPanel {
     this.grouping = false;
     clearInterval(this.tick);
     this.el.classList.remove('open');
+  }
+
+  private playersSignature(): string {
+    return JSON.stringify(this.players.map((p) => { const e = ha.entities[p.entity]; return e ? [e.state, e.attributes] : null; }));
   }
 
   private get player(): Player | undefined {
@@ -363,9 +380,11 @@ export class MusicPanel {
     const s = p ? ha.entities[p.entity] : undefined;
     const a = s?.attributes ?? {};
     const pic = typeof a.entity_picture === 'string' ? haPath(a.entity_picture) : '';
-    const art = child(this.el, '.music-art');
-    art.innerHTML = pic ? `<img src="${esc(pic)}" alt="">` : `<div class="music-art-empty">${ICON.note}</div>`;
-    child(this.el, '.music-bg').style.backgroundImage = pic ? `url("${pic.replace(/"/g, '%22')}")` : 'none';
+    if (pic !== this.artUrl) {
+      this.artUrl = pic;
+      child(this.el, '.music-art').innerHTML = pic ? `<img src="${esc(pic)}" alt="">` : `<div class="music-art-empty">${ICON.note}</div>`;
+      child(this.el, '.music-bg').style.backgroundImage = pic ? `url("${pic.replace(/"/g, '%22')}")` : 'none';
+    }
     const title = typeof a.media_title === 'string' ? a.media_title : '';
     child(this.el, '.music-title').textContent = title || (s ? (s.state === 'unavailable' ? 'Unavailable' : 'Nothing playing') : 'No speakers');
     child(this.el, '.music-artist').textContent = [a.media_artist, a.media_album_name].filter((x) => typeof x === 'string' && x).join(' · ') || (p?.name ?? '');

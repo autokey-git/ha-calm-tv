@@ -510,6 +510,12 @@ export class CalmTv {
     if (this.detail.isOpen()) this.detail.close();
 
     if (this.music.isOpen()) this.music.close();
+
+    if (this.appsSection.arranging) {
+      this.appsSection.stopArrange();
+      this.showArrangeHint(false);
+    }
+
     this.closeLaunch();
 
     if (this.secIndex !== 0) {

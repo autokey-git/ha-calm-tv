@@ -104,15 +104,21 @@ export class AppsSection implements Section {
     this.el.classList.add('arranging');
   }
 
+  /** Ends arrange mode (Back, or the Home button), keeping the order as it is. */
+  stopArrange(): void {
+    if (!this.arranging) return;
+    this.arranging = this.held = false;
+    this.el.classList.remove('arranging');
+    this.tiles.forEach((t) => t.classList.remove('is-held'));
+    saveDockOrder();
+  }
+
   /** Arrange mode's keys. Takes the focused tile, gives back the tile to focus. Settings stays last. */
   arrangeKey(key: string, i: number): number {
     const last = apps.length - 2; // the last tile you can move; Settings is after it
 
     if (key === 'Escape' || key === 'Backspace') {
-      this.arranging = this.held = false;
-      this.el.classList.remove('arranging');
-      this.tiles.forEach((t) => t.classList.remove('is-held'));
-      saveDockOrder();
+      this.stopArrange();
 
       return i;
     }

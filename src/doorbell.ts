@@ -61,7 +61,7 @@ export class DoorbellWindow {
     this.still = find(this.el, 'img', HTMLImageElement);
     this.canvas = find(this.el, 'canvas', HTMLCanvasElement);
     // Entities can arrive after the window opens (overlay mode connects from scratch).
-    ha.onEntities(() => { if (this.shown && !this.still.src) this.startStill(); });
+    ha.onEntities(() => { if (this.shown && !this.still.src && !this.el.classList.contains('live')) this.startStill(); });
     this.msg = child(this.el, '.dbell-msg');
     mount.appendChild(this.el);
   }
@@ -83,6 +83,9 @@ export class DoorbellWindow {
       if (!this.shown) return;
       this.msg.hidden = true;
       this.el.classList.add('live');
+      // The quick picture is hidden now: stop its stream, so HA isn't sending it for the rest of the ring.
+      clearInterval(this.stillTimer);
+      this.still.removeAttribute('src');
       this.video.muted = !doorbellLook().sound;
       if (overlayMode()) this.paintFrames();
       if (!this.video.muted) this.video.play().catch(() => { this.video.muted = true; });
