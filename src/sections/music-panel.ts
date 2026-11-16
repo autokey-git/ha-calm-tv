@@ -3,6 +3,7 @@ import { haPath, settings } from '../config';
 import { child } from '../dom';
 import { icon } from '../icons';
 import { ma, maConfigured, type MaQueueItem } from '../music-assistant';
+import { native } from '../native';
 
 // The Music panel: Music Assistant (or any media players) through Home Assistant. Opened from the
 // dock's Music tile. Left: what the chosen speaker is playing, with its controls. Right: the
@@ -56,6 +57,8 @@ const folderIcon = (title: string) =>
  */
 function artTint(url: string): Promise<string | null> {
   if (!url) return Promise.resolve(null);
+  // On the TV, Home Assistant's picture comes through the app, so its pixels can be read.
+  const readable = native && new URL(url, location.href).origin !== location.origin ? `/calmtv-art?u=${encodeURIComponent(url)}` : url;
 
   return new Promise((resolve) => {
     const img = new Image();
@@ -105,7 +108,7 @@ function artTint(url: string): Promise<string | null> {
         resolve(null); // a picture from another address that doesn't allow reading its pixels
       }
     };
-    img.src = url;
+    img.src = readable;
   });
 }
 

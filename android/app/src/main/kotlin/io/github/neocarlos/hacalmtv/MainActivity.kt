@@ -59,7 +59,7 @@ class MainActivity : Activity() {
             webChromeClient = NoPosterChromeClient()
             webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                    assets.shouldInterceptRequest(request.url)
+                    albumArt(request.url) ?: assets.shouldInterceptRequest(request.url)
 
                 // Stay on Calm TV's own page, plus your Home Assistant for its sign-in page.
                 // The native bridge must never be exposed to any other site.
@@ -192,6 +192,32 @@ class MainActivity : Activity() {
     }
 
     /** Your Home Assistant (as set up on this TV), for its sign-in page. */
+    /**
+     * Album art from Home Assistant, handed to the page as if it were its own (/calmtv-art?u=...),
+     * so the Music panel can read the cover's colours for its background; a page can't read the
+     * pixels of a picture from another address. Only Home Assistant's own pictures are fetched.
+     * (WebView asks on a background thread, so the download doesn't hold up the page.)
+     */
+    private fun albumArt(url: Uri): WebResourceResponse? {
+        if (url.path != "/calmtv-art" || !sameOrigin(url, startUrl)) return null
+        val target = url.getQueryParameter("u")?.let(Uri::parse) ?: return null
+        if (!isHomeAssistant(target)) return WebResourceResponse("text/plain", null, 403, "Forbidden", emptyMap(), null)
+        return try {
+            val conn = java.net.URL(target.toString()).openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 5000
+            conn.readTimeout = 10000
+            if (conn.responseCode != 200) {
+                conn.disconnect()
+                WebResourceResponse("text/plain", null, 404, "Not Found", emptyMap(), null)
+            } else {
+                WebResourceResponse(conn.contentType?.substringBefore(';') ?: "image/jpeg", null, conn.inputStream)
+            }
+        } catch (e: java.io.IOException) {
+            Log.w(TAG, "Album art: ${e.message}")
+            WebResourceResponse("text/plain", null, 404, "Not Found", emptyMap(), null)
+        }
+    }
+
     private fun isHomeAssistant(url: Uri): Boolean {
         val ha = Prefs.haUrl(this).takeIf { it.isNotEmpty() } ?: return false
         return sameOrigin(url, Uri.parse(ha))
