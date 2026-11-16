@@ -301,8 +301,10 @@ export class MusicPanel {
         </div>
         <div class="music-side">
           <div class="music-home">
-            <div class="music-h music-spk-h">Speakers</div>
-            <div class="music-note"></div>
+            <div class="music-spk-top">
+              <div class="music-h music-spk-h">Speakers</div>
+              <div class="music-note"></div>
+            </div>
             <div class="music-speakers"></div>
             <div class="music-h music-lib-h">Library</div>
             <div class="music-cats"></div>
@@ -728,7 +730,7 @@ export class MusicPanel {
     child(this.el, '.music-spk-h').textContent = this.grouping ? `Play on ${p?.name ?? ''} and…` : 'Speakers';
     child(this.el, '.music-note').textContent = this.grouping
       ? 'OK on a speaker to add or take it out · Done or Back when finished'
-      : 'OK on the chosen speaker to change its volume · OK on another to play different music in that room';
+      : 'OK on the active speaker to change its volume · OK on an idle speaker to play music there';
     this.el.classList.toggle('grouping', this.grouping);
     this.el.classList.toggle('sliding', this.slider);
 

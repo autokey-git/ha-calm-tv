@@ -535,7 +535,10 @@ html.glass-tint .music-controls, html.glass-tint .music-cats, html.glass-tint .m
 .music-vol { min-width: 58px; text-align: center; font-size: 22px; font-weight: 600; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The right column starts higher, level with the logo, so the speakers' sheet lines up with the top of the art. */
 .music-side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; margin-top: -60px; }
-.music-h.music-spk-h { margin-bottom: 8px; }
+/* The Speakers heading with its note beside it, on one line. */
+.music-spk-top { display: flex; align-items: baseline; gap: 22px; margin-bottom: 30px; min-width: 0; }
+.music-spk-top .music-h { margin-bottom: 0; flex: 0 0 auto; }
+.music-spk-top .music-note { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .music-h { font-size: 22px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 16px 4px; }
 .music-lib-h { margin-top: 36px; }
 /* Speakers share one sheet of glass like the library; the focused one is lit like a dock tile. */
