@@ -68,6 +68,7 @@ interface DemoAttributes {
   volume_level?: number;
   entity_picture?: string;
   mass_player_type?: string;
+  group_members?: string[];
 }
 
 interface DemoEntity {
@@ -289,6 +290,7 @@ const ServiceCallSchema = v.object({
       temperature: v.optional(v.number()),
       volume_level: v.optional(v.number()),
       media_content_id: v.optional(v.string()),
+      group_members: v.optional(v.array(v.string())),
     }),
     {},
   ),
@@ -392,6 +394,20 @@ class DemoHome {
         const next = (now + (call.service === 'media_next_track' ? 1 : DEMO_TRACKS.length - 1)) % DEMO_TRACKS.length;
         const [, attrs] = speaker('playing', next, s.attributes.volume_level ?? 0.3);
         this.set(id, 'playing', { ...attrs, media_position: 0 });
+
+        return { done: true };
+      }
+      case 'media_player.join': {
+        // Like Music Assistant: the leader and every member list the whole group.
+        const group = [...new Set([id, ...(s.attributes.group_members ?? []), ...(data.group_members ?? [])])];
+        for (const m of group) { const e = this.states.get(m); if (e) this.set(m, e.state, { group_members: group }); }
+
+        return { done: true };
+      }
+      case 'media_player.unjoin': {
+        const rest = (s.attributes.group_members ?? []).filter((m) => m !== id);
+        for (const m of rest) { const e = this.states.get(m); if (e) this.set(m, e.state, { group_members: rest.length > 1 ? rest : [] }); }
+        this.set(id, s.state, { group_members: [] });
 
         return { done: true };
       }

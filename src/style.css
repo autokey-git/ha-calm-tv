@@ -494,7 +494,7 @@ html.instant .section { transition: none !important; }
 .mbtn svg { width: 30px; height: 30px; }
 .mbtn.big { width: 100px; height: 100px; background: rgba(255, 255, 255, 0.16); }
 .mbtn.big svg { width: 42px; height: 42px; }
-.mbtn:nth-child(4) { margin-left: 24px; }
+.mbtn:nth-child(4), .mbtn:nth-child(6) { margin-left: 24px; }
 .mbtn.focus { background: var(--plate); box-shadow: var(--ring), var(--plate-edge); }
 .music-vol { font-size: 22px; color: var(--ink-dim); font-variant-numeric: tabular-nums; min-width: 60px; }
 .music-side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
@@ -507,6 +507,13 @@ html.instant .section { transition: none !important; }
 .mspk-text { min-width: 0; }
 .mspk-name { font-size: 26px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mspk-status { font-size: 19px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.music-group { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 20px; color: var(--ink-dim); }
+.music-group svg { width: 24px; height: 24px; flex: 0 0 auto; }
+.mspk-check { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+.mspk-check svg { width: 22px; height: 22px; }
+.mspk-check.on { background: var(--warm); border-color: var(--warm); color: #111; }
+.mspk.grouped:not(.focus) { background: rgba(255, 255, 255, 0.09); }
+.music.grouping .music-lib, .music.grouping .music-lib-h { opacity: 0.35; }
 .mspk.active { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.22); }
 .mspk.focus { background: var(--plate); box-shadow: var(--ring), var(--plate-edge); }
 .music-lib { display: flex; gap: 24px; overflow: hidden; padding: 6px 4px 4px; }

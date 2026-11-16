@@ -21,7 +21,7 @@ const TOKENS_KEY = 'ct.haTokens';
 export type HaStatus = 'signed-out' | 'connecting' | 'connected' | 'offline';
 
 /** The values this app passes to Home Assistant services (entity ids, options, levels). */
-export type ServiceData = Record<string, string | number | boolean>;
+export type ServiceData = Record<string, string | number | boolean | string[]>;
 
 /** The two calls the screens make on Home Assistant's websocket (also answered by demo mode's stand-in). */
 export type HaLink = Pick<Connection, 'sendMessagePromise' | 'subscribeMessage'>;
