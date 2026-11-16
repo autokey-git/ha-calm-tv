@@ -342,7 +342,8 @@ class Sky {
   private get starsShowing(): number {
     const { weights, weather } = this.state;
 
-    return this.scene.horizon > 0 ? weights.night * Math.max(0, 1 - weather.clouds * 1.4 - weather.fog) : 0;
+    // A night picture has its own stars; only add them over a scene with open sky that doesn't.
+    return this.scene.horizon > 0 && this.scene.native !== 'night' ? weights.night * Math.max(0, 1 - weather.clouds * 1.4 - weather.fog) : 0;
   }
 
   private get moving(): boolean {
