@@ -64,9 +64,6 @@
         "name": "Bedroom",
         "entity": "media_player.bedroom"
       }
-    ],
-    "library": [
-      "Playlists"
     ]
   },
   "rooms": [

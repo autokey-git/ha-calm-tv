@@ -3,7 +3,7 @@
 ## Unreleased
 
 - **Music panel:** a Music tile in the dock (with `"music"` in calm-tv.json) opens now playing,
-  controls, speakers and playlists, through Home Assistant (made for Music Assistant). In demo mode too.
+  controls, speakers and library buttons (Artists, Albums, Playlists, Radio…) that open a browsable grid, through Home Assistant (made for Music Assistant). In demo mode too.
   The group button picks speakers to play along with the chosen one (media_player.join / unjoin).
 - **Arrange dock:** Settings → Arrange dock moves tiles with the remote (OK picks up, ←/→ moves, OK puts down). The order is kept on the TV; "Back to the original order" resets it.
 - **Bigger doorbell window, and pause:** `"size"` (width in % of the screen), `"position": "center"`

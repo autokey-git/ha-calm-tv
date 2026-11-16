@@ -170,15 +170,28 @@ function speaker(state: string, track: number, volume: number): [string, DemoAtt
 /** media_player/browse_media: a root with Playlists, and a few playlists in it. */
 const DEMO_PLAYLISTS = ['Sunday Morning', 'Dinner Jazz', 'Focus', 'Road Trip', 'Rainy Day', 'Kids Mix', 'Evening Piano'];
 
-function browseReply(id: string | undefined): object {
-  if (!id) return { title: 'Music Assistant', children: [
-    { title: 'Artists', media_content_id: 'artists', media_content_type: 'artists', can_expand: true },
-    { title: 'Playlists', media_content_id: 'playlists', media_content_type: 'playlists', can_expand: true },
-  ] };
+const DEMO_ARTISTS = ['Harbor Lights', 'The Quiet Hours', 'Juniper Lane', 'Northbound', 'Ada Moss', 'Field Notes'];
 
-  return { title: 'Playlists', children: DEMO_PLAYLISTS.map((name, i) => ({
-    title: name, media_content_id: `playlist/${i}`, media_content_type: 'playlist', can_play: true, thumbnail: demoArt(i + 1),
-  })) };
+const demoNode = (title: string, id: string, type: string, art: number, play = true, expand = false) =>
+  ({ title, media_content_id: id, media_content_type: type, can_play: play, can_expand: expand, thumbnail: demoArt(art) });
+
+function browseReply(id: string | undefined): object {
+  if (!id) return { title: 'Music Assistant', children: ['Artists', 'Albums', 'Tracks', 'Playlists', 'Radio stations', 'Audiobooks', 'Podcasts', 'Genres']
+    .map((t) => ({ title: t, media_content_id: t.toLowerCase().split(' ')[0], media_content_type: t.toLowerCase(), can_expand: true })) };
+
+  const [kind, n] = id.split('/');
+
+  switch (kind) {
+    case 'playlists': return { title: 'Playlists', children: DEMO_PLAYLISTS.map((name, i) => demoNode(name, `playlist/${i}`, 'playlist', i + 1, true, true)) };
+    case 'artists': return { title: 'Artists', children: DEMO_ARTISTS.map((name, i) => demoNode(name, `artist/${i}`, 'artist', i, false, true)) };
+    case 'albums': return { title: 'Albums', children: DEMO_TRACKS.map((t, i) => demoNode(t.album, `album/${i}`, 'album', i, true, true)) };
+    case 'tracks':
+    case 'playlist':
+    case 'album':
+      return { title: kind, can_play: kind !== 'tracks', children: DEMO_TRACKS.map((t, i) => demoNode(t.title, `track/${i}`, 'track', i)) };
+    case 'artist': return { title: DEMO_ARTISTS[Number(n)] ?? '', children: DEMO_TRACKS.slice(0, 3).map((t, i) => demoNode(t.album, `album/${i}`, 'album', i, true, true)) };
+    default: return { title: kind, children: [] };
+  }
 }
 
 // ---------- weather ----------

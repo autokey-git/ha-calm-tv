@@ -19,8 +19,26 @@ const ICON = {
   volUp: wrap('<path d="M4 9h3.5L12 5v14l-4.5-4H4zM17 8h2v3h3v2h-3v3h-2v-3h-3v-2h3z"/>'),
   group: wrap('<path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h4A2.5 2.5 0 0 1 12 8.5v9A2.5 2.5 0 0 1 9.5 20h-4A2.5 2.5 0 0 1 3 17.5zm4.5 1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm0 3.5a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4zM14 4.5A2.5 2.5 0 0 1 16.5 2h2A2.5 2.5 0 0 1 21 4.5v11a2.5 2.5 0 0 1-2.5 2.5H14zm3.5 2a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm0 4a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z"/>'),
   check: wrap('<path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.1 8.4 18.7 7z"/>'),
+  playAll: wrap('<path d="M8 5.6v12.8a.6.6 0 0 0 .92.5l9.7-6.4a.6.6 0 0 0 0-1L8.92 5.1A.6.6 0 0 0 8 5.6z"/>'),
   note: wrap('<path d="M19 3.2v11.3a3.3 3.3 0 1 1-1.8-2.9V7.9L9.8 9.6v7.1a3.3 3.3 0 1 1-1.8-2.9V6.3a1 1 0 0 1 .78-.98l9-2.08A1 1 0 0 1 19 3.2z"/>'),
 };
+
+const lineIcon = (d: string) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+/** Icons for the media browser's folders, matched by name (as Music Assistant's sidebar has them). */
+const FOLDER_ICONS: [RegExp, string][] = [
+  [/artist/i, lineIcon('<circle cx="10" cy="8" r="3.5"/><path d="M3.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 4v8.5a2 2 0 1 1-1.5-1.94"/>')],
+  [/album/i, lineIcon('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.5"/>')],
+  [/track|song/i, lineIcon('<path d="M10 18V5l8-1.5"/><circle cx="7.5" cy="18" r="2.5"/>')],
+  [/playlist/i, lineIcon('<path d="M4 6h11M4 11h11M4 16h6"/><path d="M18 9v8a2 2 0 1 1-1.5-1.94"/>')],
+  [/audiobook|book/i, lineIcon('<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/>')],
+  [/podcast/i, lineIcon('<circle cx="12" cy="10" r="2.5"/><path d="M8 15a5.5 5.5 0 1 1 8 0M5.5 17.5a9 9 0 1 1 13 0"/><path d="M12 13v8"/>')],
+  [/radio/i, lineIcon('<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/>')],
+  [/genre/i, lineIcon('<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5M3 16.5l9 5 9-5"/>')],
+  [/favou?rite/i, lineIcon('<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>')],
+];
+const folderIcon = (title: string) =>
+  FOLDER_ICONS.find(([re]) => re.test(title))?.[1] ?? lineIcon('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
 
 interface Player {
   name: string;
@@ -32,6 +50,20 @@ interface LibraryItem {
   id: string;
   type: string;
   thumb: string;
+  canPlay: boolean;
+  canExpand: boolean;
+  /** The "Play all" card at the start of a folder that can be played as a whole. */
+  playAll?: boolean;
+}
+
+/** One level of the library browser: a folder and where the remote is in it. */
+interface Level {
+  title: string;
+  id: string;
+  type: string;
+  items: LibraryItem[] | null;
+  msg: string;
+  focus: number;
 }
 
 /** What media_player/browse_media answers (only the parts used here). */
@@ -45,9 +77,12 @@ interface BrowseNode {
   children?: BrowseNode[];
 }
 
-type Area = 'controls' | 'speakers' | 'library';
+type Area = 'controls' | 'speakers' | 'cats' | 'browse';
 const CONTROLS = ['prev', 'playpause', 'next', 'volDown', 'volUp', 'group'] as const;
-const MAX_TILES = 24;
+/** A folder's items drawn at most (Music Assistant can list thousands of tracks). */
+const MAX_ITEMS = 500;
+const CAT_COLS = 4;
+const GRID_COLS = 5;
 const VOLUME_STEP = 0.05;
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -73,12 +108,14 @@ export class MusicPanel {
   private area: Area = 'speakers';
   private ctrl = 1;
   private spk = 0;
-  private tile = 0;
+  private cat = 0;
+  /** The browser's folders, outermost first; empty when the speakers and categories show. */
+  private levels: Level[] = [];
   private active = 0;
   private players: Player[] = [];
-  private library: LibraryItem[] = [];
-  private libraryFor = '';
-  private libraryMsg = '';
+  private cats: LibraryItem[] = [];
+  private catsFor = '';
+  private catsMsg = '';
   private tick = 0;
   /** Volume just set, shown until HA catches up. */
   private heldVolume: { entity: string; value: number; until: number } | null = null;
@@ -107,10 +144,16 @@ export class MusicPanel {
           </div>
         </div>
         <div class="music-side">
-          <div class="music-h music-spk-h">Speakers</div>
-          <div class="music-speakers"></div>
-          <div class="music-h music-lib-h">Playlists</div>
-          <div class="music-lib"></div>
+          <div class="music-home">
+            <div class="music-h music-spk-h">Speakers</div>
+            <div class="music-speakers"></div>
+            <div class="music-h music-lib-h">Library</div>
+            <div class="music-cats"></div>
+          </div>
+          <div class="music-browse">
+            <div class="music-crumbs"></div>
+            <div class="music-grid"></div>
+          </div>
         </div>
       </div>
       <div class="music-hint">Back to close</div>`;
@@ -130,9 +173,10 @@ export class MusicPanel {
     this.active = this.spk = Math.max(0, playing);
     this.area = 'speakers';
     this.grouping = false;
+    this.levels = [];
     this.el.classList.add('open');
     this.render();
-    void this.loadLibrary();
+    void this.loadCats();
     this.tick = window.setInterval(() => this.renderProgress(), 1000);
   }
 
@@ -149,47 +193,78 @@ export class MusicPanel {
 
   // ---------- Home Assistant ----------
 
-  /** Playlists (or the folders named in "library") from the chosen speaker's media browser. */
-  private async loadLibrary(): Promise<void> {
-    const p = this.player;
+  private browse(entity: string, id?: string, type?: string): Promise<BrowseNode> {
     const conn = ha.connection;
 
-    if (!p || !conn || this.libraryFor === p.entity) return;
-    this.libraryFor = p.entity;
-    this.libraryMsg = 'Loading…';
-    this.renderLibrary();
-    const wanted = (settings.config.music?.library ?? ['Playlists']).map((s) => s.toLowerCase());
+    if (!conn) return Promise.reject(new Error('Not connected'));
+
+    return conn.sendMessagePromise<BrowseNode>({
+      type: 'media_player/browse_media',
+      entity_id: entity,
+      ...(id ? { media_content_id: id, media_content_type: type ?? '' } : {}),
+    });
+  }
+
+  /** The library's categories (Artists, Albums, Playlists…): the folders at the top of the chosen speaker's media browser. */
+  private async loadCats(): Promise<void> {
+    const p = this.player;
+
+    if (!p || !ha.connection || this.catsFor === p.entity) return;
+    this.catsFor = p.entity;
+    this.catsMsg = 'Loading…';
+    this.renderCats();
+    // calm-tv.json's "library" can name the ones to show; otherwise all of them.
+    const wanted = settings.config.music?.library?.map((s) => s.toLowerCase());
 
     try {
-      const browse = (id?: string, type?: string) =>
-        conn.sendMessagePromise<BrowseNode>({
-          type: 'media_player/browse_media',
-          entity_id: p.entity,
-          ...(id ? { media_content_id: id, media_content_type: type ?? '' } : {}),
-        });
-      const root = await browse();
-      const items: LibraryItem[] = [];
-
-      for (const folder of root.children ?? []) {
-        if (!wanted.some((w) => (folder.title ?? '').toLowerCase().includes(w))) continue;
-        const node = await browse(folder.media_content_id, folder.media_content_type);
-
-        for (const c of node.children ?? []) {
-          if (!c.can_play || !c.media_content_id) continue;
-          items.push({ title: c.title ?? '', id: c.media_content_id, type: c.media_content_type ?? 'music', thumb: c.thumbnail ? haPath(c.thumbnail) : '' });
-        }
-      }
-
-      this.library = items.slice(0, MAX_TILES);
-      this.libraryMsg = this.library.length ? '' : 'No playlists found';
+      const root = await this.browse(p.entity);
+      this.cats = (root.children ?? [])
+        .filter((c) => c.can_expand && c.media_content_id)
+        .filter((c) => !wanted?.length || wanted.some((w) => (c.title ?? '').toLowerCase().includes(w)))
+        .map(toItem);
+      this.catsMsg = this.cats.length ? '' : 'Nothing in the library';
     } catch (e) {
       console.warn('Music library', e);
-      this.library = [];
-      this.libraryMsg = 'Couldn’t load the library';
+      this.cats = [];
+      this.catsMsg = 'Couldn’t load the library';
     }
 
-    this.tile = Math.min(this.tile, Math.max(0, this.library.length - 1));
-    this.renderLibrary();
+    this.cat = Math.min(this.cat, Math.max(0, this.cats.length - 1));
+    this.renderCats();
+  }
+
+  /** Opens a folder in the browser (a category, an artist, an album…). */
+  private async openFolder(item: LibraryItem): Promise<void> {
+    const p = this.player;
+
+    if (!p) return;
+    const level: Level = { title: item.title, id: item.id, type: item.type, items: null, msg: 'Loading…', focus: 0 };
+    this.levels.push(level);
+    this.area = 'browse';
+    this.renderBrowse();
+
+    try {
+      const node = await this.browse(p.entity, item.id, item.type);
+      const children = (node.children ?? []).filter((c) => c.media_content_id && (c.can_play || c.can_expand));
+      const items = children.slice(0, MAX_ITEMS).map(toItem);
+
+      if (node.can_play && items.length) items.unshift({ title: 'Play all', id: item.id, type: item.type, thumb: '', canPlay: true, canExpand: false, playAll: true });
+      level.items = items;
+      level.msg = !items.length ? 'Nothing here' : children.length > MAX_ITEMS ? `Showing the first ${MAX_ITEMS} of ${children.length}` : '';
+    } catch (e) {
+      console.warn('Music browse', e);
+      level.items = [];
+      level.msg = 'Couldn’t load this';
+    }
+
+    if (this.levels.at(-1) === level) this.renderBrowse();
+  }
+
+  private closeFolder(): void {
+    this.levels.pop();
+
+    if (!this.levels.length) this.area = 'cats';
+    this.render();
   }
 
   private act(service: string, data: Record<string, string | number> = {}): void {
@@ -272,6 +347,9 @@ export class MusicPanel {
 
   private playItem(item: LibraryItem): void {
     this.act('play_media', { media_content_id: item.id, media_content_type: item.type });
+    const grid = child(this.el, '.music-grid');
+    grid.querySelector('.mcard.started')?.classList.remove('started');
+    grid.querySelector('.mcard.focus')?.classList.add('started');
   }
 
   // ---------- drawing ----------
@@ -321,25 +399,63 @@ export class MusicPanel {
       .join('');
 
     this.renderProgress();
-    this.renderLibrary();
+    this.renderCats();
+    this.renderBrowse();
   }
 
-  private renderLibrary(): void {
-    const lib = child(this.el, '.music-lib');
-    child(this.el, '.music-lib-h').textContent = (settings.config.music?.library ?? ['Playlists']).join(' · ');
+  private renderCats(): void {
+    const box = child(this.el, '.music-cats');
 
-    if (!this.library.length) {
-      lib.innerHTML = `<div class="music-lib-msg">${esc(this.libraryMsg)}</div>`;
+    if (!this.cats.length) {
+      box.innerHTML = `<div class="music-lib-msg">${esc(this.catsMsg)}</div>`;
 
       return;
     }
 
-    lib.innerHTML = this.library
-      .map((it, i) => `<div class="mtile${this.area === 'library' && this.tile === i ? ' focus' : ''}">
-          <div class="mtile-art">${it.thumb ? `<img src="${esc(it.thumb)}" alt="">` : ICON.note}</div>
-          <div class="mtile-name">${esc(it.title)}</div></div>`)
+    box.innerHTML = this.cats
+      .map((c, i) => `<div class="mcat${this.area === 'cats' && this.cat === i ? ' focus' : ''}">${folderIcon(c.title)}<span>${esc(c.title.replace(/^radio stations?$/i, 'Radio'))}</span></div>`)
       .join('');
-    lib.querySelector('.focus')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+  /** The browser's grid is drawn once per folder; moving the remote only moves the focus. */
+  private drawnLevel: Level | null = null;
+
+  private renderBrowse(): void {
+    const level = this.levels.at(-1);
+    this.el.classList.toggle('browsing', !!level);
+    child(this.el, '.music-hint').textContent = level ? 'Back to go back' : this.grouping ? 'Back when done' : 'Back to close';
+
+    if (!level) {
+      this.drawnLevel = null;
+
+      return;
+    }
+
+    const grid = child(this.el, '.music-grid');
+    child(this.el, '.music-crumbs').innerHTML = this.levels.map((l) => `<span>${esc(l.title)}</span>`).join('<i>›</i>')
+      + (level.msg && level.items?.length ? `<em>${esc(level.msg)}</em>` : '');
+
+    if (this.drawnLevel !== level || grid.dataset.ready !== String(!!level.items)) {
+      this.drawnLevel = level;
+      grid.dataset.ready = String(!!level.items);
+      grid.scrollTop = 0;
+      grid.innerHTML = !level.items?.length
+        ? `<div class="music-lib-msg">${esc(level.msg)}</div>`
+        : level.items
+          .map((it) => `<div class="mcard${it.playAll ? ' playall' : ''}">
+              <div class="mcard-art">${it.playAll ? ICON.playAll : it.thumb ? `<img loading="lazy" src="${esc(it.thumb)}" alt="">` : it.canExpand ? folderIcon(this.levels[0]?.title ?? '') : ICON.note}</div>
+              <div class="mcard-name">${esc(it.title)}</div></div>`)
+          .join('');
+    }
+
+    const cards = grid.children;
+    grid.querySelector('.mcard.focus')?.classList.remove('focus');
+    const focused = this.area === 'browse' ? cards[level.focus] : undefined;
+
+    if (focused?.classList.contains('mcard')) {
+      focused.classList.add('focus');
+      focused.scrollIntoView({ block: 'nearest' });
+    }
   }
 
   /** The progress bar moves on its own between HA updates while playing. */
@@ -367,6 +483,12 @@ export class MusicPanel {
     if (k === 'Escape' || k === 'Backspace') {
       e.preventDefault();
 
+      if (this.levels.length) {
+        this.closeFolder();
+
+        return;
+      }
+
       if (this.grouping) {
         this.grouping = false;
         this.render();
@@ -391,8 +513,20 @@ export class MusicPanel {
         else if (pl) this.toggleGroup(pl.entity);
       } else if (this.area === 'speakers') {
         this.active = this.spk;
-        void this.loadLibrary();
-      } else if (this.library[this.tile]) this.playItem(this.library[this.tile]);
+        void this.loadCats();
+      } else if (this.area === 'cats') {
+        const c = this.cats[this.cat];
+
+        if (c) void this.openFolder(c);
+      } else {
+        const level = this.levels.at(-1);
+        const it = level?.items?.[level.focus];
+
+        if (it?.canExpand && !it.playAll) void this.openFolder(it);
+        else if (it?.canPlay) this.playItem(it);
+
+        return;
+      }
       this.render();
 
       return;
@@ -402,30 +536,66 @@ export class MusicPanel {
       if (k === 'ArrowLeft') this.ctrl = Math.max(0, this.ctrl - 1);
       if (k === 'ArrowRight') {
         if (this.ctrl < CONTROLS.length - 1) this.ctrl++;
-        else this.area = 'speakers';
+        else this.area = this.levels.length ? 'browse' : 'speakers';
       }
     } else if (this.area === 'speakers') {
       // Two columns of speakers.
       if (k === 'ArrowUp') this.spk = Math.max(this.spk % 2, this.spk - 2);
       if (k === 'ArrowDown') {
         if (this.spk + 2 < this.players.length) this.spk += 2;
-        else if (this.library.length && !this.grouping) this.area = 'library';
+        else if (this.cats.length && !this.grouping) {
+          this.area = 'cats';
+          this.cat = Math.min(this.spk % 2 === 0 ? 0 : CAT_COLS - 1, this.cats.length - 1);
+        }
       }
       if (k === 'ArrowRight' && this.spk % 2 === 0 && this.spk + 1 < this.players.length) this.spk++;
       if (k === 'ArrowLeft') {
         if (this.spk % 2 === 1) this.spk--;
         else if (!this.grouping) this.area = 'controls';
       }
-    } else {
-      // One row of tiles, scrolling sideways.
-      if (k === 'ArrowRight') this.tile = Math.min(this.library.length - 1, this.tile + 1);
+    } else if (this.area === 'cats') {
+      const col = this.cat % CAT_COLS;
+
+      if (k === 'ArrowRight' && col < CAT_COLS - 1 && this.cat + 1 < this.cats.length) this.cat++;
       if (k === 'ArrowLeft') {
-        if (this.tile === 0) this.area = 'controls';
-        else this.tile--;
+        if (col > 0) this.cat--;
+        else this.area = 'controls';
       }
-      if (k === 'ArrowUp') this.area = 'speakers';
+      if (k === 'ArrowDown' && this.cat + CAT_COLS < this.cats.length) this.cat += CAT_COLS;
+      if (k === 'ArrowUp') {
+        if (this.cat >= CAT_COLS) this.cat -= CAT_COLS;
+        else {
+          this.area = 'speakers';
+          this.spk = Math.max(0, this.players.length - (col < CAT_COLS / 2 ? (this.players.length % 2 === 0 ? 2 : 1) : 1));
+        }
+      }
+    } else {
+      // The browser: a grid that scrolls up and down.
+      const level = this.levels.at(-1);
+      const n = level?.items?.length ?? 0;
+
+      if (level && n) {
+        const col = level.focus % GRID_COLS;
+
+        if (k === 'ArrowRight' && col < GRID_COLS - 1 && level.focus + 1 < n) level.focus++;
+        if (k === 'ArrowLeft') {
+          if (col > 0) level.focus--;
+          else this.area = 'controls';
+        }
+        if (k === 'ArrowDown') level.focus = Math.min(n - 1, level.focus + GRID_COLS);
+        if (k === 'ArrowUp' && level.focus >= GRID_COLS) level.focus -= GRID_COLS;
+      } else if (k === 'ArrowLeft') this.area = 'controls';
     }
 
     this.render();
   }
 }
+
+const toItem = (c: BrowseNode): LibraryItem => ({
+  title: c.title ?? '',
+  id: c.media_content_id ?? '',
+  type: c.media_content_type ?? 'music',
+  thumb: c.thumbnail ? haPath(c.thumbnail) : '',
+  canPlay: !!c.can_play,
+  canExpand: !!c.can_expand,
+});

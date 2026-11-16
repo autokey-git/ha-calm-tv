@@ -74,8 +74,8 @@ const ConfigSchema = v.object({
   ),
   /**
    * The Music panel (a Music tile in the dock): `players` are the speakers, as { name, entity }
-   * (default: every Music Assistant player), and `library` names the media-browser folders whose
-   * items are offered to play (default ["Playlists"]).
+   * (default: every Music Assistant player), and `library` names the media browser's top folders
+   * that get a button (default: all of them).
    */
   music: v.optional(
     v.object({

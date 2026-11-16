@@ -519,16 +519,33 @@ html.instant .section { transition: none !important; }
 .mspk-check svg { width: 22px; height: 22px; }
 .mspk-check.on { background: var(--warm); border-color: var(--warm); color: #111; }
 .mspk.grouped:not(.focus) { background: rgba(255, 255, 255, 0.09); }
-.music.grouping .music-lib, .music.grouping .music-lib-h { opacity: 0.35; }
+.music.grouping .music-cats, .music.grouping .music-lib-h { opacity: 0.35; }
 .mspk.active { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.22); }
 .mspk.focus { background: var(--plate); box-shadow: var(--ring), var(--plate-edge); }
-.music-lib { display: flex; gap: 24px; overflow: hidden; padding: 6px 4px 4px; }
-.mtile { flex: 0 0 200px; }
-.mtile-art { width: 200px; height: 200px; border-radius: 20px; overflow: hidden; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); transition: box-shadow 0.18s ease, transform 0.18s ease; }
-.mtile-art img { width: 100%; height: 100%; object-fit: cover; }
-.mtile-art svg { width: 70px; height: 70px; }
-.mtile-name { margin-top: 12px; font-size: 21px; font-weight: 600; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mtile.focus .mtile-art { box-shadow: var(--ring); transform: scale(1.04); }
-.mtile.focus .mtile-name { color: var(--ink); }
+.music-home { display: flex; flex-direction: column; min-height: 0; }
+.music-browse { display: none; flex-direction: column; min-height: 0; flex: 1 1 0; }
+.music.browsing .music-home { display: none; }
+.music.browsing .music-browse { display: flex; }
+.music-cats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.mcat { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-radius: 20px; background: rgba(255, 255, 255, 0.05); font-size: 23px; font-weight: 600; color: var(--ink-dim); transition: background 0.18s ease, box-shadow 0.18s ease; white-space: nowrap; overflow: hidden; }
+.mcat svg { width: 30px; height: 30px; flex: 0 0 auto; }
+.mcat span { overflow: hidden; text-overflow: ellipsis; }
+.mcat.focus { background: var(--plate); box-shadow: var(--ring), var(--plate-edge); color: var(--ink); }
+.music-crumbs { display: flex; align-items: baseline; gap: 12px; font-size: 22px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 16px 4px; white-space: nowrap; overflow: hidden; }
+.music-crumbs span:last-of-type { color: var(--ink); }
+.music-crumbs i { font-style: normal; }
+.music-crumbs em { font-style: normal; text-transform: none; letter-spacing: 0; font-weight: 500; margin-left: 12px; }
+.music-grid { flex: 1 1 0; min-height: 0; overflow-y: auto; scrollbar-width: none; display: grid; grid-template-columns: repeat(5, 1fr); gap: 26px 22px; align-content: start; padding: 8px 6px 40px; }
+.music-grid::-webkit-scrollbar { display: none; }
+.music-grid .music-lib-msg { grid-column: 1 / -1; }
+.mcard { min-width: 0; }
+.mcard-art { aspect-ratio: 1; border-radius: 18px; overflow: hidden; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); transition: box-shadow 0.18s ease, transform 0.18s ease; }
+.mcard-art img { width: 100%; height: 100%; object-fit: cover; }
+.mcard-art svg { width: 64px; height: 64px; }
+.mcard.playall .mcard-art { background: rgba(255, 255, 255, 0.14); color: var(--ink); }
+.mcard-name { margin-top: 10px; font-size: 20px; font-weight: 600; color: var(--ink-dim); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.mcard.focus .mcard-art { box-shadow: var(--ring); transform: scale(1.04); }
+.mcard.focus .mcard-name { color: var(--ink); }
+.mcard.started .mcard-name::before { content: '▶ '; color: var(--warm); }
 .music-lib-msg { font-size: 22px; color: var(--ink-faint); padding: 8px 4px; }
 .music-hint { position: absolute; right: 110px; bottom: 44px; font-size: 20px; color: var(--ink-faint); }
