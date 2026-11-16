@@ -247,9 +247,16 @@ html.glass-tint .gb-veil { background: rgba(8, 14, 18, 0.5); }
   position: relative; display: flex; align-items: center; gap: 20px; width: 100%; padding: 20px 22px;
   border-radius: 22px; cursor: pointer; text-align: left; color: var(--ink); font-family: inherit;
   background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: background 0.18s ease, box-shadow 0.18s ease;
 }
-.drow.focus { background: rgba(255, 255, 255, 0.12); box-shadow: var(--ring), var(--plate-edge); }
+/* The focus highlight is its own layer that only fades (like the dock's plate), so moving focus
+   never repaints the row or re-blurs the frosted panel behind it. That repaint was the lag. */
+.drow::before {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  background: rgba(255, 255, 255, 0.12); box-shadow: var(--ring), var(--plate-edge);
+  opacity: 0; transition: opacity 0.12s ease; will-change: opacity;
+}
+.drow > * { position: relative; }
+.drow.focus::before { opacity: 1; }
 .dicon { width: 56px; height: 56px; border-radius: 15px; background: rgba(255, 255, 255, 0.06); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--ink); }
 .dicon svg { width: 30px; height: 30px; }
 .dmeta { min-width: 0; flex: 1 1 auto; }
@@ -409,6 +416,9 @@ html.dbell-only .dbell { --u: 1vw; position: fixed; inset: 0; width: auto; right
 .setup-text { margin-top: 16px; font-size: 26px; color: var(--ink-dim); }
 .setup-input { margin-top: 40px; width: 100%; box-sizing: border-box; padding: 22px 28px; border-radius: 20px; border: 2px solid rgba(255, 255, 255, 0.5); background: rgba(255, 255, 255, 0.08); color: var(--ink); font: 600 34px 'Manrope', system-ui, sans-serif; outline: none; }
 .setup-input:focus { border-color: #fff; }
+.setup-label { margin-top: 30px; font-size: 22px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-faint); }
+.setup-label span { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.ma-setup .setup-input { margin-top: 12px; }
 .setup-msg { min-height: 34px; margin-top: 18px; font-size: 24px; color: var(--warm); }
 .setup-hint { margin-top: 8px; font-size: 21px; color: var(--ink-faint); }
 
@@ -486,7 +496,7 @@ html.instant .section { transition: none !important; }
 .music-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 6, 8, 0.45), rgba(4, 6, 8, 0.7)); }
 .music-body { position: absolute; inset: 96px 110px 110px; display: flex; gap: 100px; }
 .music-now { flex: 0 0 600px; width: 600px; min-width: 0; display: flex; flex-direction: column; }
-.music-art { flex: 0 0 auto; width: 496px; height: 496px; border-radius: 28px; overflow: hidden; background: rgba(255, 255, 255, 0.06); box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.8); }
+.music-art { flex: 0 0 auto; width: 420px; height: 420px; border-radius: 28px; overflow: hidden; background: rgba(255, 255, 255, 0.06); box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.8); }
 .music-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .music-art-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
 .music-art-empty svg { width: 160px; height: 160px; }
@@ -496,43 +506,99 @@ html.instant .section { transition: none !important; }
 .music-progress i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 3px; transition: width 1s linear; }
 .music-times { display: flex; justify-content: space-between; margin-top: 10px; font-size: 20px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 /* Controls and library sit in frosted bars like the dock: one sheet of glass, the focused item lit. */
-.music-controls, .music-cats { -webkit-backdrop-filter: blur(16px) saturate(1.05); backdrop-filter: blur(16px) saturate(1.05); background: var(--veil); box-shadow: var(--plate-edge); }
-html.glass-tint .music-controls, html.glass-tint .music-cats { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
+.music-controls, .music-cats, .music-speakers { -webkit-backdrop-filter: blur(16px) saturate(1.05); backdrop-filter: blur(16px) saturate(1.05); background: var(--veil); box-shadow: var(--plate-edge); }
+html.glass-tint .music-controls, html.glass-tint .music-cats, html.glass-tint .music-speakers { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
 .music-controls { margin-top: 18px; display: flex; align-items: center; justify-content: space-between; height: 104px; padding: 0 12px; border-radius: 40px; }
-.mspk { background: rgba(255, 255, 255, 0.06); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--plate-edge); }
-html.glass-tint .mspk { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.45); }
+.music-controls-2 { margin-top: 12px; height: 88px; gap: 8px; }
+.music-controls-2 .mbtn { width: 72px; height: 72px; border-radius: 24px; }
+.music-controls-2 .mbtn svg { width: 36px; height: 36px; }
+.music-volbar { flex: 1 1 0; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+.music-volbar i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 4px; transition: width 0.2s ease; }
+.mbtn.on { color: var(--warm); opacity: 1; }
 .mbtn { width: 80px; height: 80px; flex: 0 0 auto; border-radius: 26px; border: 0; background: transparent; color: var(--ink); opacity: 0.86; display: flex; align-items: center; justify-content: center; transition: background 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease; }
 .mbtn svg { width: 40px; height: 40px; }
 .mbtn.big svg { width: 52px; height: 52px; }
 .mbtn.focus { opacity: 1; background: var(--plate); box-shadow: var(--plate-edge); }
-.music-vol { min-width: 64px; text-align: center; font-size: 22px; font-weight: 600; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.music-vol { min-width: 58px; text-align: center; font-size: 22px; font-weight: 600; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .music-side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .music-h { font-size: 22px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 16px 4px; }
 .music-lib-h { margin-top: 36px; }
-.music-speakers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.mspk { display: flex; align-items: center; gap: 18px; padding: 18px 24px; border-radius: 22px; border: 1px solid transparent; transition: background 0.18s ease, box-shadow 0.18s ease; }
-.mspk-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); flex: 0 0 auto; }
-.mspk.playing .mspk-dot { background: var(--warm); box-shadow: 0 0 12px var(--warm); }
-.mspk-text { min-width: 0; }
-.mspk-name { font-size: 26px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mspk-status { font-size: 19px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+/* Speakers share one sheet of glass like the library; the focused one is lit like a dock tile. */
+.music-speakers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 12px; border-radius: 40px; }
+.mspk { display: flex; align-items: center; gap: 18px; height: 88px; padding: 0 24px; border-radius: 28px; color: var(--ink-dim); transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease; }
+.mspk .mspk-name { color: var(--ink-dim); transition: color 0.18s ease; }
+.mspk.active .mspk-name, .mspk.grouped .mspk-name, .mspk.focus .mspk-name { color: var(--ink); }
+/* The dot takes the same 30px as the grouping checkmark, so names don't shift when grouping starts. */
+.mspk-dot { width: 30px; height: 30px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+.mspk-dot::after { content: ''; width: 12px; height: 12px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); }
+.mspk.playing .mspk-dot::after { background: var(--warm); box-shadow: 0 0 12px var(--warm); }
+.mspk-text { min-width: 0; flex: 1 1 0; overflow: hidden; }
+/* Cards keep their size: a long name or status stays on one line, and scrolls on the focused card. */
+.mspk-name span, .mspk-status span { display: inline-block; white-space: nowrap; }
+.mspk-name span.scroll, .mspk-status span.scroll { animation: mspk-scroll linear infinite alternate; animation-delay: 1s; }
+@keyframes mspk-scroll { 0%, 15% { transform: translateX(0); } 85%, 100% { transform: translateX(var(--scroll)); } }
+.mspk-ico { width: 34px; height: 34px; flex: 0 0 auto; display: flex; color: var(--ink); }
+.mspk-ico svg { width: 34px; height: 34px; }
+.mspk.everywhere { grid-column: span 1; }
+.mspk.wide { grid-column: 1 / -1; }
+.mspk.wide, .mspk.top { height: 80px; }
+.music-note { margin: -8px 0 14px 4px; font-size: 19px; color: var(--ink-faint); }
+.mspk-name { font-size: 26px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+.mspk-status { font-size: 19px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; margin-top: 2px; }
 .music-group { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 20px; color: var(--ink-dim); }
 .music-group svg { width: 24px; height: 24px; flex: 0 0 auto; }
+.mspk-slider { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.mspk-bar { flex: 1 1 0; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+.mspk-bar i { display: block; height: 100%; background: var(--ink); border-radius: 4px; transition: width 0.2s ease; }
+.mspk-pct { min-width: 58px; text-align: right; font-size: 20px; font-weight: 600; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.mspk.sliding .mspk-name { font-size: 22px; }
+.music.sliding .mspk:not(.sliding), .music.sliding .music-cats, .music.sliding .music-lib-h { opacity: 0.35; }
+.mspk { transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, opacity 0.25s ease; }
 .mspk-check { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
 .mspk-check svg { width: 22px; height: 22px; }
 .mspk-check.on { background: var(--warm); border-color: var(--warm); color: #111; }
-.mspk.grouped:not(.focus) { background: rgba(255, 255, 255, 0.1); }
-.music.grouping .music-cats, .music.grouping .music-lib-h { opacity: 0.35; }
-.mspk.active:not(.focus) { background: rgba(255, 255, 255, 0.13); border-color: rgba(255, 255, 255, 0.2); }
-.mspk.focus { background: var(--plate); box-shadow: var(--ring), var(--plate-edge); }
+.mspk.active:not(.focus) { background: rgba(255, 255, 255, 0.05); }
+.mspk.focus { background: var(--plate); box-shadow: var(--plate-edge); }
+/* Grouping is its own little menu: everything but the speakers fades back. */
+.music-now, .music-lib-h, .music-cats { transition: opacity 0.25s ease; }
+.music.grouping .music-now, .music.grouping .music-cats, .music.grouping .music-lib-h { opacity: 0.12; }
 .music-home { display: flex; flex-direction: column; min-height: 0; }
 .music-browse { display: none; flex-direction: column; min-height: 0; flex: 1 1 0; }
-.music.browsing .music-home { display: none; }
+.music.browsing .music-home, .music.queue-open .music-home { display: none; }
+.music-queue { display: none; }
+.music.queue-open:not(.browsing) .music-queue { display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; }
+/* The whole queue (with Music Assistant connected): one sheet of glass that scrolls, like the library. */
+.mq-list { flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 40px; background: var(--veil); box-shadow: var(--plate-edge); -webkit-backdrop-filter: blur(16px) saturate(1.05); backdrop-filter: blur(16px) saturate(1.05); }
+html.glass-tint .mq-list { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
+.mql { flex: 0 0 auto; display: flex; align-items: center; gap: 22px; height: 88px; padding: 0 22px 0 12px; border-radius: 28px; transition: background 0.18s ease, box-shadow 0.18s ease; }
+.mql.focus { background: var(--plate); box-shadow: var(--plate-edge); }
+.mql-art { position: relative; width: 64px; height: 64px; flex: 0 0 auto; border-radius: 12px; overflow: hidden; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
+.mql-art svg { width: 30px; height: 30px; }
+.mql-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mql-text { flex: 1 1 0; min-width: 0; }
+.mql-name { font-size: 25px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mql-sub { margin-top: 2px; font-size: 19px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-tip { color: var(--ink-faint); }
+/* The gear at the bottom right: Music Assistant's connection (for the full queue). */
+.music-gear { position: absolute; right: 96px; bottom: 14px; width: 84px; height: 84px; border: 0; border-radius: 28px; color: var(--ink); opacity: 0.86; display: flex; align-items: center; justify-content: center; background: var(--veil); box-shadow: var(--plate-edge); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); transition: background 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease; }
+html.glass-tint .music-gear { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
+.music-gear svg { width: 44px; height: 44px; }
+.music-gear.focus { background: var(--plate); box-shadow: var(--plate-edge); opacity: 1; }
+.mq-h { font-size: 20px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin: 28px 0 12px 4px; }
+.mq-row { display: flex; align-items: center; gap: 28px; padding: 18px; border-radius: 30px; background: var(--veil); box-shadow: var(--plate-edge); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.mq-art { width: 132px; height: 132px; flex: 0 0 auto; border-radius: 18px; overflow: hidden; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
+.mq-art img { width: 100%; height: 100%; object-fit: cover; }
+.mq-art svg { width: 56px; height: 56px; }
+.mq-text { flex: 1 1 0; min-width: 0; }
+.mq-name { font-size: 32px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-sub { margin-top: 6px; font-size: 22px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-time { font-size: 22px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.mq-facts { margin: 22px 0 0 4px; font-size: 21px; color: var(--ink-dim); }
 .music.browsing .music-browse { display: flex; }
-.music-cats { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; height: 128px; padding: 12px; border-radius: 48px; }
-.mcat { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-radius: 30px; font-size: 17px; font-weight: 600; color: var(--ink-dim); white-space: nowrap; min-width: 0; transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease; }
-.mcat svg { width: 48px; height: 48px; flex: 0 0 auto; color: var(--ink); opacity: 0.86; }
-.mcat span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.music-cats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 12px; border-radius: 40px; }
+.mcat { display: flex; align-items: center; gap: 18px; height: 88px; padding: 0 22px; border-radius: 28px; font-size: 25px; font-weight: 600; color: var(--ink-dim); white-space: nowrap; min-width: 0; transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease; }
+.mcat svg { width: 52px; height: 52px; flex: 0 0 auto; color: var(--ink); opacity: 0.86; }
+.mcat span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .mcat.focus { background: var(--plate); box-shadow: var(--plate-edge); color: var(--ink); }
 .mcat.focus svg { opacity: 1; }
 .music-crumbs { display: flex; align-items: baseline; gap: 12px; font-size: 22px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 16px 4px; white-space: nowrap; overflow: hidden; }
@@ -552,4 +618,4 @@ html.glass-tint .mspk { -webkit-backdrop-filter: none; backdrop-filter: none; ba
 .mcard.focus .mcard-name { color: var(--ink); }
 .mcard.started .mcard-name::before { content: '▶ '; color: var(--warm); }
 .music-lib-msg { font-size: 22px; color: var(--ink-faint); padding: 8px 4px; }
-.music-hint { position: absolute; right: 110px; bottom: 44px; font-size: 20px; color: var(--ink-faint); }
+.music-hint { position: absolute; right: 204px; bottom: 42px; font-size: 20px; color: var(--ink-faint); }

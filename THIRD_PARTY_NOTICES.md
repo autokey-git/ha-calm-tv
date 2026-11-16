@@ -40,6 +40,7 @@ CleanFrame is under the MIT licence:
 | --- | --- |
 | Apple TV, HBO Max, Netflix, Prime Video, Stremio, YouTube | [Simple Icons](https://github.com/simple-icons/simple-icons), CC0 1.0, by way of CleanFrame's icon set (files unchanged from CleanFrame). `src/icons/SIMPLE-ICONS-LICENSE.txt` |
 | Google TV, Plex; and from Simple Icons 16.38.0: Apple Music, Crunchyroll, Emby, Home Assistant, Jellyfin, Kodi, NVIDIA, Paramount+, PlayStation, Spotify, Steam, TIDAL, Tubi, Twitch, YouTube Kids, YouTube Music | [Simple Icons](https://github.com/simple-icons/simple-icons), CC0 1.0 (files unchanged). `src/icons/SIMPLE-ICONS-LICENSE.txt` |
+| Music Assistant (`musicassistant.svg`) | The logo path from [Music Assistant's frontend](https://github.com/music-assistant/frontend) (`public/favicon.svg`), Apache License 2.0; drawn as a one-colour silhouette. |
 | Disney+ | [Custom Brand Icons](https://github.com/elax46/custom-brand-icons), MIT, by way of CleanFrame. `src/icons/CUSTOM-BRAND-ICONS-LICENSE.txt` |
 | Settings gear | [Material Icons](https://github.com/google/material-design-icons) "settings", Apache License 2.0. `src/icons/MATERIAL-ICONS-LICENSE.txt` |
 | Hulu, Peacock | Simplified marks drawn for this project, covered by its MIT licence |

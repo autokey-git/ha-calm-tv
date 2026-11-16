@@ -9,6 +9,7 @@ import type { CalendarEvent, CalendarResponse, ForecastEntry, ForecastMessage } 
 import { videos } from './videos';
 import { wallpapers } from './wallpapers';
 import { showRemote } from './demo-remote';
+import { ma } from './music-assistant';
 import artA from './wallpapers/00-mountain-lake-sunset.jpg?url';
 import artB from './wallpapers/01-stylized-forest-brook.jpg?url';
 
@@ -69,6 +70,7 @@ interface DemoAttributes {
   entity_picture?: string;
   mass_player_type?: string;
   group_members?: string[];
+  shuffle?: boolean;
 }
 
 interface DemoEntity {
@@ -145,6 +147,8 @@ function initialStates() {
     ['media_player.kitchen', speaker('paused', 1, 0.2)],
     ['media_player.office', speaker('idle', -1, 0.25)],
     ['media_player.bedroom', speaker('idle', -1, 0.15)],
+    ['media_player.dining_room', speaker('idle', -1, 0.2)],
+    ['media_player.patio', speaker('idle', -1, 0.3)],
   ]);
 }
 
@@ -304,6 +308,7 @@ const ServiceCallSchema = v.object({
       volume_level: v.optional(v.number()),
       media_content_id: v.optional(v.string()),
       group_members: v.optional(v.array(v.string())),
+      shuffle: v.optional(v.boolean()),
     }),
     {},
   ),
@@ -318,7 +323,7 @@ const ForecastSubscriptionSchema = v.object({
 });
 
 /** What the stand-in answers: calendar events, or nothing for other calls. */
-type DemoReply = CalendarResponse | { done: true };
+type DemoReply = CalendarResponse | { done: true } | { response: Record<string, unknown> };
 
 /** Pretends to be Home Assistant: holds the made-up states and changes them as Calm TV asks. */
 class DemoHome {
@@ -409,6 +414,17 @@ class DemoHome {
         this.set(id, 'playing', { ...attrs, media_position: 0 });
 
         return { done: true };
+      }
+      case 'media_player.shuffle_set': this.set(id, s.state, { shuffle: data.shuffle ?? false }); return { done: true };
+      case 'music_assistant.get_queue': {
+        const now = DEMO_TRACKS.findIndex((t) => t.title === s.attributes.media_title);
+        const item = (i: number) => {
+          const t = DEMO_TRACKS[i % DEMO_TRACKS.length];
+
+          return { name: t.title, duration: t.duration, media_item: { name: t.title, image: demoArt(i % DEMO_TRACKS.length), artists: [{ name: t.artist }], album: { name: t.album } } };
+        };
+
+        return { response: { [id]: { queue_id: id, items: 14, current_index: 3, shuffle_enabled: !!s.attributes.shuffle, repeat_mode: 'off', current_item: now < 0 ? null : item(now), next_item: now < 0 ? null : item(now + 1) } } };
       }
       case 'media_player.join': {
         // Like Music Assistant: the leader and every member list the whole group.
@@ -510,6 +526,22 @@ function caption(title: string, detail = ''): void {
 
 /** Switches the app to the made-up home. Call before the screens are built. */
 export function startDemo(): void {
+  // A made-up Music Assistant for the Music panel's full queue: 14 songs, playing the 4th.
+  const songs = ['Slow Tide', 'Paper Lanterns', 'Northern Window', 'Low Sun', 'Harbour Bells', 'Glass Garden', 'Still Water', 'Cedar Smoke', 'Morning Ferry', 'Long Shadows', 'Blue Hour', 'Salt Air', 'Quiet Streets', 'Last Light'];
+  ma.demo = (command, args) => {
+    if (command === 'player_queues/items') {
+      const offset = Number(args.offset ?? 0);
+
+      return songs.slice(offset, offset + Number(args.limit ?? 100)).map((name, j) => {
+        const i = offset + j;
+        const t = DEMO_TRACKS[i % DEMO_TRACKS.length];
+
+        return { queue_item_id: `q${i}`, name, duration: 180 + ((i * 37) % 90), demoArt: demoArt(i), media_item: { name, artists: [{ name: t.artist }] } };
+      });
+    }
+
+    return null;
+  };
   const clock = new URLSearchParams(location.search).get('at');
 
   if (clock) setClock(clock);

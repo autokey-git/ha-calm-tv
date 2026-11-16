@@ -80,7 +80,7 @@ export function resetDockOrder(): void {
 export const hasDockOrder = () => readOrder().length > 0;
 
 /** Calm TV's Music panel (sections/music-panel.ts). */
-const musicTile: App = { name: 'Music', mark: icon('music'), kind: 'music' };
+const musicTile: App = { name: 'Music', mark: icon('musicassistant'), kind: 'music' };
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 

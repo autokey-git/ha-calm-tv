@@ -134,7 +134,7 @@ off). On the TV: **Settings → Accessibility → Calm TV: Home button → On**,
 ## The Music panel
 
 A **Music** tile in the dock (just left of Settings) opens what's playing, play/pause, skip,
-volume, the speakers, speaker grouping, and library buttons (Artists, Albums, Tracks, Playlists,
+shuffle, the queue, volume, the speakers, speaker grouping, and library buttons (Artists, Albums, Tracks, Playlists,
 Radio, Podcasts, Audiobooks) that you can browse and play from. It needs
 [Music Assistant](https://music-assistant.io) set up in Home Assistant.
 
@@ -160,11 +160,38 @@ To put the Music tile somewhere else in the dock, add it to `"apps"` where you w
 
 ### Using it with the remote
 
-- **Speakers:** OK picks the speaker that the controls and library play on.
-- **Group button** (after volume): OK on other speakers adds them to play along, or takes them out.
-  Back when done.
+- **Speakers:** OK on another speaker picks it, so the controls and library play there. OK on the
+  chosen speaker (or one grouped with it) turns its card into a volume slider: ←/→ to change it,
+  OK or Back when done.
+- **Group speakers** (the wide button above the speakers): OK on other speakers adds them to play
+  along, or takes them out. **Play everywhere** adds them all. **Done grouping**, Back or ← when done.
+- **Controls:** shuffle, previous, play/pause, next and queue; below them the volume, which turns
+  every speaker in the group.
+- **Queue:** what's playing and what's next (the whole queue, with OK to jump to a song, once
+  Music Assistant is connected; see below).
 - **Library:** OK on a button opens its grid. OK on an artist, album or playlist opens it (an album
   or playlist starts with **Play all**). OK on a song or station plays it. Back goes up a level.
+
+### The whole queue (optional)
+
+Home Assistant tells the TV what's playing and what's next, not the whole queue. To see and jump
+through the whole queue, connect the TV to Music Assistant itself:
+
+1. In Music Assistant's web page, open your profile in Settings and create a long-lived token.
+2. On the TV: **Settings → Home Assistant → Music Assistant** (or the gear at the bottom right of
+   the Music panel). Enter Music Assistant's address (usually your Home Assistant machine on port
+   8095, for example `http://192.168.1.20:8095`), then the token.
+
+Typing a token with the remote is slow: paste it with the Google TV remote in the Google Home app
+on your phone (tap its keyboard while the token box is selected). Or hand it over with adb in one go
+(adb's `input text` cuts long text off):
+
+```
+adb shell am start -n io.github.neocarlos.hacalmtv/.MainActivity --es maToken <token>
+```
+
+The address and token are kept on the TV only, never in `calm-tv.json`. Leave the address empty and
+press OK to turn it off.
 
 ### If something's off
 

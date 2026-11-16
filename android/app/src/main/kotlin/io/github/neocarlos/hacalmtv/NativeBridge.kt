@@ -100,6 +100,10 @@ class NativeBridge(private val activity: Activity) {
     @JavascriptInterface
     fun setHaUrl(url: String): String = Prefs.setHaUrl(activity, url).orEmpty()
 
+    /** Music Assistant's address and token set with adb, as JSON { url, token }, once; "" if none. */
+    @JavascriptInterface
+    fun takeMaSetup(): String = Prefs.takeMaHandoff(activity)
+
     /**
      * Calm TV's configuration, as JSON: { "source": "...", "text": "<the file>" } or { "error": "..." }.
      * See ConfigFile for where it looks. Fetched here rather than in the page because Home Assistant
