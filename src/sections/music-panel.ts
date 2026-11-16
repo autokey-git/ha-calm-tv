@@ -985,7 +985,12 @@ export class MusicPanel {
         }
       }
       if (k === 'ArrowUp') {
-        if (this.cat >= CAT_COLS) this.cat -= CAT_COLS;
+        if (this.cat >= CAT_COLS) {
+          // A short last row is centred, so Up goes to the button straight above.
+          const lastRow = Math.floor((this.cats.length - 1) / CAT_COLS) * CAT_COLS;
+          const shift = this.cat >= lastRow ? Math.floor((CAT_COLS - (this.cats.length - lastRow)) / 2) : 0;
+          this.cat -= CAT_COLS - shift;
+        }
         else {
           this.area = 'speakers';
           const lastRow = this.players.length - (this.players.length % 2 === 0 ? 2 : 1);
