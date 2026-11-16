@@ -108,7 +108,7 @@ const QUEUE_PAGE = 100;
 /** While grouping, the "Play everywhere" tile beside Done (top right of the speakers). */
 const EVERYWHERE = -2;
 const QUEUE_MAX = 500;
-const CAT_COLS = 3;
+const CAT_COLS = 4;
 /** The two rows of controls under the art: playback, then volume and grouping. */
 const CONTROL_ROWS = [['shuffle', 'prev', 'playpause', 'next', 'queue'], ['volDown', 'volUp']] as const;
 type Control = (typeof CONTROL_ROWS)[number][number];
