@@ -492,12 +492,12 @@ html.instant .section { transition: none !important; }
 /* ---------- Music panel (sections/music-panel.ts) ---------- */
 .music { position: absolute; inset: 0; display: none; z-index: 45; overflow: hidden; background: #06080a; }
 .music.open { display: block; }
-.music-bg { position: absolute; inset: -60px; background: #0b0e11 center / cover no-repeat; filter: blur(60px) saturate(1.2); opacity: 0.55; transition: background-image 0.4s ease; }
+.music-bg { position: absolute; inset: -60px; background: #0b0e11 center / cover no-repeat; filter: blur(24px) saturate(1.15); opacity: 0.72; transition: background-image 0.4s ease; }
 .music-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 6, 8, 0.45), rgba(4, 6, 8, 0.7)); }
 .music-body { position: absolute; inset: 96px 110px 110px; display: flex; gap: 100px; }
 .music-now { flex: 0 0 600px; width: 600px; min-width: 0; display: flex; flex-direction: column; }
-/* Music Assistant's mark in the empty top-left corner, beside the art; it takes no space. */
-.music-logo { position: absolute; left: 110px; top: 96px; width: 56px; height: 56px; color: var(--ink); opacity: 0.5; pointer-events: none; transition: opacity 0.25s ease; }
+/* Music Assistant's mark tucked into the top-left corner, clear of the art; it takes no space. */
+.music-logo { position: absolute; left: 36px; top: 36px; width: 72px; height: 72px; color: var(--ink); opacity: 0.5; pointer-events: none; transition: opacity 0.25s ease; }
 .music-logo svg { width: 100%; height: 100%; display: block; }
 .music-logo svg path { fill: currentColor; }
 .music.grouping .music-logo { opacity: 0.12; }
@@ -570,7 +570,9 @@ html.glass-tint .music-controls, html.glass-tint .music-cats, html.glass-tint .m
 /* Grouping is its own little menu: everything but the speakers fades back. */
 .music-now, .music-lib-h, .music-cats { transition: opacity 0.25s ease; }
 .music.grouping .music-now, .music.grouping .music-cats, .music.grouping .music-lib-h { opacity: 0.12; }
-.music-home { display: flex; flex-direction: column; min-height: 0; }
+/* The library sits at the bottom, level with the controls; the speakers get the room above. */
+.music-home { display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; padding-bottom: 11px; }
+.music-home .music-lib-h { margin-top: auto; padding-top: 36px; }
 .music-browse { display: none; flex-direction: column; min-height: 0; flex: 1 1 0; }
 .music.browsing .music-home, .music.queue-open .music-home { display: none; }
 .music-queue { display: none; }
@@ -587,11 +589,6 @@ html.glass-tint .mq-list { -webkit-backdrop-filter: none; backdrop-filter: none;
 .mql-name { font-size: 25px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mql-sub { margin-top: 2px; font-size: 19px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mq-tip { color: var(--ink-faint); }
-/* The gear at the bottom right: Music Assistant's connection (for the full queue). */
-.music-gear { position: absolute; right: 96px; bottom: 14px; width: 84px; height: 84px; border: 0; border-radius: 28px; color: var(--ink); opacity: 0.86; display: flex; align-items: center; justify-content: center; background: var(--veil); box-shadow: var(--plate-edge); -webkit-backdrop-filter: blur(16px) saturate(1.05) brightness(0.72); backdrop-filter: blur(16px) saturate(1.05) brightness(0.72); transition: background 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease; }
-html.glass-tint .music-gear { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
-.music-gear svg { width: 44px; height: 44px; }
-.music-gear.focus { background: var(--plate); box-shadow: var(--plate-edge); opacity: 1; }
 .mq-h { font-size: 20px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin: 28px 0 12px 4px; }
 .mq-row { display: flex; align-items: center; gap: 28px; padding: 18px; border-radius: 30px; background: var(--veil); box-shadow: var(--plate-edge); -webkit-backdrop-filter: blur(16px) saturate(1.05) brightness(0.72); backdrop-filter: blur(16px) saturate(1.05) brightness(0.72); }
 .mq-art { width: 132px; height: 132px; flex: 0 0 auto; border-radius: 18px; overflow: hidden; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
@@ -628,4 +625,4 @@ html.glass-tint .music-gear { -webkit-backdrop-filter: none; backdrop-filter: no
 .mcard.focus .mcard-name { color: var(--ink); }
 .mcard.started .mcard-name::before { content: '▶ '; color: var(--warm); }
 .music-lib-msg { font-size: 22px; color: var(--ink-faint); padding: 8px 4px; }
-.music-hint { position: absolute; right: 204px; bottom: 42px; font-size: 20px; color: var(--ink-faint); }
+.music-hint { position: absolute; right: 110px; bottom: 42px; font-size: 20px; color: var(--ink-faint); }

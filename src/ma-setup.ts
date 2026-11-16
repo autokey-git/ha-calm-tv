@@ -3,8 +3,7 @@ import { guessMaUrl, ma, maSettings } from './music-assistant';
 
 /**
  * "Connect to Music Assistant": the server's address and a long-lived token, for the Music
- * panel's full queue. Opened from Settings → Home Assistant → Music Assistant, or the gear in the
- * Music panel. Typing a long token with the remote is slow: the Google TV remote in the Google
+ * panel's full queue. Opened from Settings → Home Assistant → Music Assistant. Typing a long token with the remote is slow: the Google TV remote in the Google
  * Home app on a phone can paste it, and so can adb (adb shell input text '<token>').
  */
 export function showMaSetup(onClose?: () => void): void {

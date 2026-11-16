@@ -172,8 +172,7 @@ Home Assistant tells the TV what's playing and what's next, not the whole queue.
 through the whole queue, connect the TV to Music Assistant itself:
 
 1. In Music Assistant's web page, open your profile in Settings and create a long-lived token.
-2. On the TV: **Settings → Home Assistant → Music Assistant** (or the gear at the bottom right of
-   the Music panel). Enter Music Assistant's address (usually your Home Assistant machine on port
+2. On the TV: **Settings → Home Assistant → Music Assistant**. Enter Music Assistant's address (usually your Home Assistant machine on port
    8095, for example `http://192.168.1.20:8095`), then the token.
 
 Typing a token with the remote is slow: paste it with the Google TV remote in the Google Home app

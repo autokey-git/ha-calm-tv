@@ -3,7 +3,6 @@ import { haPath, settings } from '../config';
 import { child } from '../dom';
 import { icon } from '../icons';
 import { ma, maConfigured, type MaQueueItem } from '../music-assistant';
-import { showMaSetup } from '../ma-setup';
 
 // The Music panel: Music Assistant (or any media players) through Home Assistant. Opened from the
 // dock's Music tile. Left: what the chosen speaker is playing, with its controls. Right: the
@@ -24,25 +23,27 @@ const ICON = {
   shuffle: wrap('<path d="M16.5 4.5 20 8l-3.5 3.5V9.2h-1.3c-1.2 0-2 .5-2.8 1.6l-4.3 6.1c-1.1 1.6-2.5 2.6-4.6 2.6H3v-2h.5c1.3 0 2.1-.5 2.9-1.7l4.3-6.1c1.1-1.5 2.5-2.5 4.5-2.5h1.3zM3 6.5h.5c2 0 3.4.9 4.4 2.3l.6.8-1.2 1.7-.9-1.3C5.6 8.9 4.8 8.5 3.5 8.5H3zm10.7 8.2 1.2-1.7c.7.9 1.4 1.3 2.3 1.4h.3v-2.3L21 15.5 17.5 19v-2.3h-.4c-1.5-.1-2.5-.8-3.4-2z"/>'),
   queue: wrap('<path d="M3 5.5h13v2H3zM3 10.5h13v2H3zM3 15.5h8v2H3zM14 14.6v5.8a.5.5 0 0 0 .76.43l4.6-2.9a.5.5 0 0 0 0-.86l-4.6-2.9a.5.5 0 0 0-.76.43z"/>'),
   everywhere: wrap('<path d="M2 9.5A1.5 1.5 0 0 1 3.5 8h3A1.5 1.5 0 0 1 8 9.5v9A1.5 1.5 0 0 1 6.5 20h-3A1.5 1.5 0 0 1 2 18.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 3.2a1.8 1.8 0 1 0 0 3.6A1.8 1.8 0 0 0 5 14zM9 5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 18.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 4.2a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4zM16 9.5A1.5 1.5 0 0 1 17.5 8h3A1.5 1.5 0 0 1 22 9.5v9a1.5 1.5 0 0 1-1.5 1.5h-3a1.5 1.5 0 0 1-1.5-1.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 3.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z"/>'),
-  gear: wrap('<path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.4 7.4 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.4l-.4 2.7a7.6 7.6 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6a.5.5 0 0 0-.1.6l2 3.5c.1.2.4.3.6.2l2.5-1c.5.4 1.1.7 1.7 1l.4 2.6c0 .3.2.5.5.5h4c.3 0 .5-.2.5-.4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1c.2.1.5 0 .6-.2l2-3.5a.5.5 0 0 0-.1-.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/>'),
   check: wrap('<path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.1 8.4 18.7 7z"/>'),
   playAll: wrap('<path d="M8 5.6v12.8a.6.6 0 0 0 .92.5l9.7-6.4a.6.6 0 0 0 0-1L8.92 5.1A.6.6 0 0 0 8 5.6z"/>'),
   note: wrap('<path d="M19 3.2v11.3a3.3 3.3 0 1 1-1.8-2.9V7.9L9.8 9.6v7.1a3.3 3.3 0 1 1-1.8-2.9V6.3a1 1 0 0 1 .78-.98l9-2.08A1 1 0 0 1 19 3.2z"/>'),
 };
 
-const lineIcon = (d: string) =>
-  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-/** Icons for the media browser's folders, matched by name (as Music Assistant's sidebar has them). */
+const lineIcon = (d: string, box = '0 0 24 24', width = 2) =>
+  `<svg viewBox="${box}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+/**
+ * Icons for the media browser's folders, matched by name: the ones Music Assistant's own sidebar
+ * uses (Lucide, ISC; Artists and Genres are Music Assistant's own, Apache 2.0).
+ */
 const FOLDER_ICONS: [RegExp, string][] = [
-  [/artist/i, lineIcon('<circle cx="10" cy="8" r="3.5"/><path d="M3.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 4v8.5a2 2 0 1 1-1.5-1.94"/>')],
-  [/album/i, lineIcon('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.5"/>')],
-  [/track|song/i, lineIcon('<path d="M10 18V5l8-1.5"/><circle cx="7.5" cy="18" r="2.5"/>')],
-  [/playlist/i, lineIcon('<path d="M4 6h11M4 11h11M4 16h6"/><path d="M18 9v8a2 2 0 1 1-1.5-1.94"/>')],
-  [/audiobook|book/i, lineIcon('<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/>')],
-  [/podcast/i, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 12c0 .74-.4 1.38-1 1.72V22h-2v-8.28c-.6-.35-1-.98-1-1.72 0-1.1.9-2 2-2s2 .9 2 2zm-2-6c-3.31 0-6 2.69-6 6 0 1.74.75 3.31 1.94 4.4l1.42-1.42C8.53 14.25 8 13.19 8 12c0-2.21 1.79-4 4-4s4 1.79 4 4c0 1.19-.53 2.25-1.36 2.98l1.42 1.42C17.25 15.31 18 13.74 18 12c0-3.31-2.69-6-6-6zm0-4C6.48 2 2 6.48 2 12c0 2.85 1.2 5.41 3.11 7.24l1.42-1.42C4.98 16.36 4 14.29 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8c0 2.29-.98 4.36-2.53 5.82l1.42 1.42C20.8 17.41 22 14.85 22 12c0-5.52-4.48-10-10-10z"/></svg>'],
-  [/radio/i, lineIcon('<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/>')],
-  [/genre/i, lineIcon('<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5M3 16.5l9 5 9-5"/>')],
-  [/favou?rite/i, lineIcon('<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>')],
+  [/artist/i, lineIcon('<path d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 0c2.12 0 4.16.84 5.66 2.34M12 13c-2.12 0-4.16.84-5.66 2.34A8 8 0 0 0 4 21"/><path d="M21 21a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm0 0v-8l3.5 2"/>', '0 0 26 24')],
+  [/album/i, lineIcon('<circle cx="12" cy="12" r="10"/><path d="M6 12c0-1.7.7-3.2 1.8-4.2"/><circle cx="12" cy="12" r="2"/><path d="M18 12c0 1.7-.7 3.2-1.8 4.2"/>')],
+  [/track|song/i, lineIcon('<circle cx="8" cy="18" r="4"/><path d="M12 18V2l7 4"/>')],
+  [/playlist/i, lineIcon('<path d="M16 5H3"/><path d="M11 12H3"/><path d="M11 19H3"/><path d="M21 16V5"/><circle cx="18" cy="16" r="3"/>')],
+  [/audiobook|book/i, lineIcon('<path d="M12 6v7"/><path d="M16 8v3"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><path d="M8 8v3"/>')],
+  [/podcast/i, lineIcon('<path d="M16.85 18.58a9 9 0 1 0-9.7 0"/><path d="M8 14a5 5 0 1 1 8 0"/><circle cx="12" cy="11" r="1"/><path d="M13 17a1 1 0 1 0-2 0l.5 4.5a.5.5 0 1 0 1 0Z"/>')],
+  [/radio/i, lineIcon('<path d="M16.247 7.761a6 6 0 0 1 0 8.478"/><path d="M19.075 4.933a10 10 0 0 1 0 14.134"/><path d="M4.925 19.067a10 10 0 0 1 0-14.134"/><path d="M7.753 16.239a6 6 0 0 1 0-8.478"/><circle cx="12" cy="12" r="2"/>')],
+  [/genre/i, lineIcon('<path d="M49.83 33.63a2 2 0 0 1-1.23 1.92l-17.87 8.12a4.2 4.2 0 0 1-3.44 0L12 36.72m-3.83 7.33a2 2 0 0 0 1.2 1.9l17.92 8.14a4.2 4.2 0 0 0 3.44 0l17.87-8.12a2 2 0 0 0 1.23-1.92M19 29.48l8.29 3.78a4.2 4.2 0 0 0 3.46 0l17.87-8.13a2 2 0 0 0 0-3.81l-17.9-8.15a4.2 4.2 0 0 0-3.46 0L22 15.63"/><path d="M13.2 24.1a5.6 5.53 0 1 1-11.2 0 5.6 5.53 0 0 1 11.2 0Zm0 0V2l9.8 5.53"/>', '0 0 52 57', 4)],
+  [/favou?rite/i, lineIcon('<path d="M2 9.5a5.5 5.5 0 0 1 9.59-3.68.56.56 0 0 0 .82 0A5.5 5.5 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.49 5.31a2 2 0 0 1-3 .02L5 15c-1.5-1.5-3-3.2-3-5.5"/>')],
 ];
 const folderIcon = (title: string) =>
   FOLDER_ICONS.find(([re]) => re.test(title))?.[1] ?? lineIcon('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
@@ -101,7 +102,7 @@ interface BrowseNode {
   children?: BrowseNode[];
 }
 
-type Area = 'controls' | 'speakers' | 'cats' | 'browse' | 'queue' | 'gear';
+type Area = 'controls' | 'speakers' | 'cats' | 'browse' | 'queue';
 /** Queue items asked of Music Assistant at a time, and at most in all. */
 const QUEUE_PAGE = 100;
 /** While grouping, the "Play everywhere" tile beside Done (top right of the speakers). */
@@ -217,8 +218,7 @@ export class MusicPanel {
           </div>
         </div>
       </div>
-      <div class="music-hint">Back to close</div>
-      <button class="music-gear" aria-label="Music Assistant settings">${ICON.gear}</button>`;
+      <div class="music-hint">Back to close</div>`;
     mount.appendChild(this.el);
     // Every state change in the house arrives here; redraw only when one of the speakers changed.
     ha.onEntities(() => {
@@ -609,7 +609,6 @@ export class MusicPanel {
       b.classList.toggle('on', (c === 'shuffle' && a.shuffle === true) || (c === 'queue' && this.queueOpen) );
       b.classList.toggle('focus', c === focused);
     });
-    child(this.el, '.music-gear').classList.toggle('focus', this.area === 'gear');
     const vol = this.volume();
     child(this.el, '.music-vol').textContent = vol === undefined ? '' : `${Math.round(vol * 100)}%`;
     child(this.el, '.music-volbar i').style.width = `${Math.round((vol ?? 0) * 100)}%`;
@@ -711,7 +710,7 @@ export class MusicPanel {
     box.innerHTML = `<div class="music-h">Queue · ${esc(this.player?.name ?? '')}</div>`
       + (q ? row('Now playing', q.current_item) + (q.next_item ? row('Up next', q.next_item) : '<div class="mq-h">Up next</div><div class="music-lib-msg">Nothing after this one</div>')
         + (facts ? `<div class="mq-facts">${esc(facts)}</div>` : '')
-        + (maConfigured() ? '' : '<div class="mq-facts mq-tip">To see the whole queue, connect Music Assistant: the gear at the bottom right.</div>')
+        + (maConfigured() ? '' : '<div class="mq-facts mq-tip">To see the whole queue, connect Music Assistant in Settings → Home Assistant → Music Assistant.</div>')
         : `<div class="music-lib-msg">${esc(this.queueMsg)}</div>`);
   }
 
@@ -844,13 +843,7 @@ export class MusicPanel {
 
     if (k === 'Enter' || k === ' ') {
       if (this.area === 'controls') this.press(CONTROL_ROWS[this.ctrlRow][this.ctrl]);
-      else if (this.area === 'gear') {
-        showMaSetup(() => {
-          // Connected just now: fetch the whole queue if it's showing.
-          if (this.queueOpen) void this.loadQueue();
-          this.render();
-        });
-      } else if (this.area === 'queue') {
+      else if (this.area === 'queue') {
         const it = this.maItems[this.qFocus];
 
         if (it && this.maQueueId) {
@@ -913,7 +906,7 @@ export class MusicPanel {
         if (this.ctrlRow === 0) {
           this.ctrlRow = 1;
           this.ctrl = this.ctrl <= 2 ? 0 : 1;
-        } else this.area = 'gear';
+        }
       }
       if (k === 'ArrowUp') {
         if (this.ctrlRow === 1) {
@@ -932,8 +925,6 @@ export class MusicPanel {
           }
         }
       }
-    } else if (this.area === 'gear') {
-      if (k === 'ArrowUp' || k === 'ArrowLeft') this.area = 'controls';
     } else if (this.area === 'queue') {
       if (k === 'ArrowLeft') this.area = 'controls';
       if (k === 'ArrowUp') this.qFocus = Math.max(0, this.qFocus - 1);
