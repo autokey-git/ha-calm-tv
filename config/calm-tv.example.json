@@ -63,6 +63,14 @@
       {
         "name": "Bedroom",
         "entity": "media_player.bedroom"
+      },
+      {
+        "name": "Dining room",
+        "entity": "media_player.dining_room"
+      },
+      {
+        "name": "Patio",
+        "entity": "media_player.patio"
       }
     ]
   },

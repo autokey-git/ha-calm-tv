@@ -1,4 +1,4 @@
-import { ha } from '../ha';
+import { ha, type ServiceData } from '../ha';
 import { haPath, settings } from '../config';
 import { child } from '../dom';
 
@@ -18,6 +18,9 @@ const ICON = {
   volDown: wrap('<path d="M4 9h3.5L12 5v14l-4.5-4H4zM15 11h6v2h-6z"/>'),
   volUp: wrap('<path d="M4 9h3.5L12 5v14l-4.5-4H4zM17 8h2v3h3v2h-3v3h-2v-3h-3v-2h3z"/>'),
   group: wrap('<path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h4A2.5 2.5 0 0 1 12 8.5v9A2.5 2.5 0 0 1 9.5 20h-4A2.5 2.5 0 0 1 3 17.5zm4.5 1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm0 3.5a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4zM14 4.5A2.5 2.5 0 0 1 16.5 2h2A2.5 2.5 0 0 1 21 4.5v11a2.5 2.5 0 0 1-2.5 2.5H14zm3.5 2a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm0 4a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z"/>'),
+  shuffle: wrap('<path d="M16.5 4.5 20 8l-3.5 3.5V9.2h-1.3c-1.2 0-2 .5-2.8 1.6l-4.3 6.1c-1.1 1.6-2.5 2.6-4.6 2.6H3v-2h.5c1.3 0 2.1-.5 2.9-1.7l4.3-6.1c1.1-1.5 2.5-2.5 4.5-2.5h1.3zM3 6.5h.5c2 0 3.4.9 4.4 2.3l.6.8-1.2 1.7-.9-1.3C5.6 8.9 4.8 8.5 3.5 8.5H3zm10.7 8.2 1.2-1.7c.7.9 1.4 1.3 2.3 1.4h.3v-2.3L21 15.5 17.5 19v-2.3h-.4c-1.5-.1-2.5-.8-3.4-2z"/>'),
+  queue: wrap('<path d="M3 5.5h13v2H3zM3 10.5h13v2H3zM3 15.5h8v2H3zM14 14.6v5.8a.5.5 0 0 0 .76.43l4.6-2.9a.5.5 0 0 0 0-.86l-4.6-2.9a.5.5 0 0 0-.76.43z"/>'),
+  everywhere: wrap('<path d="M2 9.5A1.5 1.5 0 0 1 3.5 8h3A1.5 1.5 0 0 1 8 9.5v9A1.5 1.5 0 0 1 6.5 20h-3A1.5 1.5 0 0 1 2 18.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 3.2a1.8 1.8 0 1 0 0 3.6A1.8 1.8 0 0 0 5 14zM9 5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 18.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 4.2a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4zM16 9.5A1.5 1.5 0 0 1 17.5 8h3A1.5 1.5 0 0 1 22 9.5v9a1.5 1.5 0 0 1-1.5 1.5h-3a1.5 1.5 0 0 1-1.5-1.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 3.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z"/>'),
   check: wrap('<path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.1 8.4 18.7 7z"/>'),
   playAll: wrap('<path d="M8 5.6v12.8a.6.6 0 0 0 .92.5l9.7-6.4a.6.6 0 0 0 0-1L8.92 5.1A.6.6 0 0 0 8 5.6z"/>'),
   note: wrap('<path d="M19 3.2v11.3a3.3 3.3 0 1 1-1.8-2.9V7.9L9.8 9.6v7.1a3.3 3.3 0 1 1-1.8-2.9V6.3a1 1 0 0 1 .78-.98l9-2.08A1 1 0 0 1 19 3.2z"/>'),
@@ -32,13 +35,29 @@ const FOLDER_ICONS: [RegExp, string][] = [
   [/track|song/i, lineIcon('<path d="M10 18V5l8-1.5"/><circle cx="7.5" cy="18" r="2.5"/>')],
   [/playlist/i, lineIcon('<path d="M4 6h11M4 11h11M4 16h6"/><path d="M18 9v8a2 2 0 1 1-1.5-1.94"/>')],
   [/audiobook|book/i, lineIcon('<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/>')],
-  [/podcast/i, lineIcon('<circle cx="12" cy="10" r="2.5"/><path d="M8 15a5.5 5.5 0 1 1 8 0M5.5 17.5a9 9 0 1 1 13 0"/><path d="M12 13v8"/>')],
+  [/podcast/i, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 12c0 .74-.4 1.38-1 1.72V22h-2v-8.28c-.6-.35-1-.98-1-1.72 0-1.1.9-2 2-2s2 .9 2 2zm-2-6c-3.31 0-6 2.69-6 6 0 1.74.75 3.31 1.94 4.4l1.42-1.42C8.53 14.25 8 13.19 8 12c0-2.21 1.79-4 4-4s4 1.79 4 4c0 1.19-.53 2.25-1.36 2.98l1.42 1.42C17.25 15.31 18 13.74 18 12c0-3.31-2.69-6-6-6zm0-4C6.48 2 2 6.48 2 12c0 2.85 1.2 5.41 3.11 7.24l1.42-1.42C4.98 16.36 4 14.29 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8c0 2.29-.98 4.36-2.53 5.82l1.42 1.42C20.8 17.41 22 14.85 22 12c0-5.52-4.48-10-10-10z"/></svg>'],
   [/radio/i, lineIcon('<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/>')],
   [/genre/i, lineIcon('<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5M3 16.5l9 5 9-5"/>')],
   [/favou?rite/i, lineIcon('<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>')],
 ];
 const folderIcon = (title: string) =>
   FOLDER_ICONS.find(([re]) => re.test(title))?.[1] ?? lineIcon('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
+
+/** A queue entry, as music_assistant.get_queue answers (only the parts used here). */
+interface QueueItem {
+  name?: string;
+  duration?: number | null;
+  media_item?: { name?: string; image?: string | null; artists?: { name?: string }[]; album?: { name?: string } } | null;
+}
+
+interface QueueInfo {
+  items?: number;
+  current_index?: number | null;
+  shuffle_enabled?: boolean;
+  repeat_mode?: string;
+  current_item?: QueueItem | null;
+  next_item?: QueueItem | null;
+}
 
 interface Player {
   name: string;
@@ -78,7 +97,10 @@ interface BrowseNode {
 }
 
 type Area = 'controls' | 'speakers' | 'cats' | 'browse';
-const CONTROLS = ['prev', 'playpause', 'next', 'volDown', 'volUp', 'group'] as const;
+const CAT_COLS = 3;
+/** The two rows of controls under the art: playback, then volume and grouping. */
+const CONTROL_ROWS = [['shuffle', 'prev', 'playpause', 'next', 'queue'], ['volDown', 'volUp', 'group']] as const;
+type Control = (typeof CONTROL_ROWS)[number][number];
 /** A folder's items drawn at most (Music Assistant can list thousands of tracks). */
 const MAX_ITEMS = 500;
 /** The library buttons, in order, when calm-tv.json's "library" doesn't name its own: Music Assistant's folders. */
@@ -107,7 +129,14 @@ export class MusicPanel {
   private el: HTMLElement;
   private open = false;
   private area: Area = 'speakers';
-  private ctrl = 1;
+  private ctrl = 2;
+  private ctrlRow = 0;
+  /** The queue (what's playing and what's next) shows in place of the speakers and library. */
+  private queueOpen = false;
+  private queue: QueueInfo | null = null;
+  private queueMsg = '';
+  private queueFor = '';
+  private queueTitle = '';
   private spk = 0;
   private cat = 0;
   /** The browser's folders, outermost first; empty when the speakers and categories show. */
@@ -144,8 +173,14 @@ export class MusicPanel {
           <div class="music-progress"><i></i></div>
           <div class="music-times"><span class="t-pos"></span><span class="t-dur"></span></div>
           <div class="music-controls">
-            ${CONTROLS.map((c) => `<button class="mbtn" data-c="${c}"></button>`).join('')}
+            ${CONTROL_ROWS[0].map((c) => `<button class="mbtn" data-c="${c}"></button>`).join('')}
+          </div>
+          <div class="music-controls music-controls-2">
+            <button class="mbtn" data-c="volDown"></button>
+            <div class="music-volbar"><i></i></div>
             <span class="music-vol"></span>
+            <button class="mbtn" data-c="volUp"></button>
+            <button class="mbtn" data-c="group"></button>
           </div>
         </div>
         <div class="music-side">
@@ -155,6 +190,7 @@ export class MusicPanel {
             <div class="music-h music-lib-h">Library</div>
             <div class="music-cats"></div>
           </div>
+          <div class="music-queue"></div>
           <div class="music-browse">
             <div class="music-crumbs"></div>
             <div class="music-grid"></div>
@@ -170,6 +206,10 @@ export class MusicPanel {
 
       if (sig === this.lastSig) return;
       this.lastSig = sig;
+      // A new song: what's next changed too.
+      const title = this.player ? String(ha.entities[this.player.entity]?.attributes.media_title ?? '') : '';
+
+      if (this.queueOpen && title !== this.queueTitle) void this.loadQueue();
       this.render();
     });
   }
@@ -186,6 +226,7 @@ export class MusicPanel {
     this.active = this.spk = Math.max(0, playing);
     this.area = 'speakers';
     this.grouping = false;
+    this.queueOpen = false;
     this.levels = [];
     this.lastSig = this.playersSignature();
     this.el.classList.add('open');
@@ -287,7 +328,7 @@ export class MusicPanel {
     this.render();
   }
 
-  private act(service: string, data: Record<string, string | number> = {}): void {
+  private act(service: string, data: ServiceData = {}): void {
     const p = this.player;
 
     if (p) void ha.call('media_player', service, { entity_id: p.entity, ...data });
@@ -338,11 +379,73 @@ export class MusicPanel {
   private startGrouping(): void {
     if (this.players.length < 2) return;
     this.grouping = true;
+    this.queueOpen = false;
     this.area = 'speakers';
     this.spk = this.active === 0 ? 1 : 0;
   }
 
-  private press(c: (typeof CONTROLS)[number]): void {
+  /** The grid's last tile while grouping: every speaker at once, or back to just the chosen one. */
+  private everywhere(): void {
+    const p = this.player;
+
+    if (!p) return;
+    const group = this.group();
+    const others = this.players.filter((pl) => pl.entity !== p.entity && ha.entities[pl.entity]?.state !== 'unavailable');
+    const all = others.every((pl) => group.has(pl.entity));
+
+    for (const pl of others) this.heldGroup.set(pl.entity, { joined: !all, until: Date.now() + 5000 });
+
+    if (all) others.forEach((pl) => void ha.call('media_player', 'unjoin', { entity_id: pl.entity }));
+    else void ha.call('media_player', 'join', { entity_id: p.entity, group_members: others.map((pl) => pl.entity) });
+  }
+
+  private allGrouped(): boolean {
+    const p = this.player;
+    const group = this.group();
+
+    return !!p && this.players.every((pl) => pl.entity === p.entity || ha.entities[pl.entity]?.state === 'unavailable' || group.has(pl.entity));
+  }
+
+  /**
+   * Music Assistant's queue for the chosen speaker (music_assistant.get_queue). Home Assistant
+   * gives what's playing, what's next and how many are queued, not the whole list.
+   */
+  private async loadQueue(): Promise<void> {
+    const p = this.player;
+    const conn = ha.connection;
+
+    if (!p || !conn) return;
+    this.queueFor = p.entity;
+    this.queueTitle = String(ha.entities[p.entity]?.attributes.media_title ?? '');
+    this.queueMsg = this.queue ? '' : 'Loading…';
+    this.renderQueue();
+
+    try {
+      const reply = await conn.sendMessagePromise<{ response?: Record<string, QueueInfo> }>({
+        type: 'call_service', domain: 'music_assistant', service: 'get_queue',
+        target: { entity_id: p.entity }, return_response: true,
+      });
+      this.queue = reply.response?.[p.entity] ?? null;
+      this.queueMsg = this.queue ? '' : 'No queue';
+    } catch (e) {
+      console.warn('Music queue', e);
+      this.queue = null;
+      this.queueMsg = 'Nothing queued on this speaker';
+    }
+
+    this.renderQueue();
+  }
+
+  private toggleQueue(): void {
+    this.queueOpen = !this.queueOpen;
+
+    if (this.queueOpen) {
+      this.queue = null;
+      void this.loadQueue();
+    }
+  }
+
+  private press(c: Control): void {
     const state = this.player ? ha.entities[this.player.entity]?.state : undefined;
 
     switch (c) {
@@ -360,6 +463,12 @@ export class MusicPanel {
         break;
       }
       case 'group': this.startGrouping(); break;
+      case 'shuffle': {
+        const on = this.player ? ha.entities[this.player.entity]?.attributes.shuffle === true : false;
+        this.act('shuffle_set', { shuffle: !on });
+        break;
+      }
+      case 'queue': this.toggleQueue(); break;
     }
 
     this.render();
@@ -395,14 +504,17 @@ export class MusicPanel {
     child(this.el, '.music-spk-h').textContent = this.grouping ? `Play on ${p?.name ?? ''} and… · OK to add or remove · Back when done` : 'Speakers';
     this.el.classList.toggle('grouping', this.grouping);
 
-    this.el.querySelectorAll<HTMLElement>('.mbtn').forEach((b, i) => {
-      const c = CONTROLS[i];
+    const focused = this.area === 'controls' ? CONTROL_ROWS[this.ctrlRow][this.ctrl] : null;
+    this.el.querySelectorAll<HTMLElement>('.mbtn').forEach((b) => {
+      const c = b.dataset.c as Control;
       b.innerHTML = c === 'playpause' ? (s?.state === 'playing' ? ICON.pause : ICON.play) : ICON[c];
       b.classList.toggle('big', c === 'playpause');
-      b.classList.toggle('focus', this.area === 'controls' && this.ctrl === i);
+      b.classList.toggle('on', (c === 'shuffle' && a.shuffle === true) || (c === 'queue' && this.queueOpen) || (c === 'group' && others.length > 0));
+      b.classList.toggle('focus', c === focused);
     });
     const vol = this.volume();
     child(this.el, '.music-vol').textContent = vol === undefined ? '' : `${Math.round(vol * 100)}%`;
+    child(this.el, '.music-volbar i').style.width = `${Math.round((vol ?? 0) * 100)}%`;
 
     child(this.el, '.music-speakers').innerHTML = this.players
       .map((pl, i) => {
@@ -416,13 +528,61 @@ export class MusicPanel {
         const cls = ['mspk', i === this.active ? 'active' : '', inGroup ? 'grouped' : '', e?.state === 'playing' ? 'playing' : '', this.area === 'speakers' && this.spk === i ? 'focus' : ''].join(' ');
         const mark = this.grouping ? `<span class="mspk-check${i === this.active || inGroup ? ' on' : ''}">${i === this.active || inGroup ? ICON.check : ''}</span>` : '<span class="mspk-dot"></span>';
 
-        return `<div class="${cls}">${mark}<div class="mspk-text"><div class="mspk-name">${esc(pl.name)}</div><div class="mspk-status">${esc(status)}</div></div></div>`;
+        return `<div class="${cls}">${mark}<div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div><div class="mspk-status"><span>${esc(status)}</span></div></div></div>`;
       })
-      .join('');
+      .join('')
+      + (this.grouping ? `<div class="mspk everywhere${this.spk === this.players.length && this.area === 'speakers' ? ' focus' : ''}"><span class="mspk-ico">${ICON.everywhere}</span><div class="mspk-text"><div class="mspk-name"><span>${this.allGrouped() ? 'Just this speaker' : 'Play everywhere'}</span></div><div class="mspk-status"><span>${this.allGrouped() ? 'Take the others out' : 'Every speaker plays along'}</span></div></div></div>` : '');
+    this.marquee();
 
     this.renderProgress();
     this.renderCats();
     this.renderBrowse();
+    this.renderQueue();
+  }
+
+  /** Speaker cards keep their size; a name or status too long for the focused card scrolls. */
+  private marquee(): void {
+    this.el.querySelectorAll<HTMLElement>('.mspk.focus .mspk-name, .mspk.focus .mspk-status').forEach((box) => {
+      const span = box.firstElementChild as HTMLElement | null;
+      const extra = span ? span.scrollWidth - box.clientWidth : 0;
+
+      if (span && extra > 4) {
+        span.style.setProperty('--scroll', `-${extra + 8}px`);
+        span.style.animationDuration = `${Math.max(4, extra / 30 + 3)}s`;
+        span.classList.add('scroll');
+      }
+    });
+  }
+
+  private renderQueue(): void {
+    this.el.classList.toggle('queue-open', this.queueOpen && !this.levels.length);
+
+    if (!this.queueOpen) return;
+    const q = this.queue;
+    const box = child(this.el, '.music-queue');
+    const row = (label: string, it: QueueItem | null | undefined) => {
+      if (!it) return '';
+      const m = it.media_item;
+      const img = m?.image ? haPath(m.image) : '';
+      const artists = (m?.artists ?? []).map((x) => x.name).filter(Boolean).join(', ');
+      const sub = [artists, m?.album?.name].filter(Boolean).join(' · ');
+
+      return `<div class="mq-h">${esc(label)}</div>
+        <div class="mq-row"><div class="mq-art">${img ? `<img src="${esc(img)}" alt="">` : ICON.note}</div>
+        <div class="mq-text"><div class="mq-name">${esc(m?.name ?? it.name ?? '')}</div><div class="mq-sub">${esc(sub)}</div></div>
+        <div class="mq-time">${it.duration ? mmss(it.duration) : ''}</div></div>`;
+    };
+    const left = q?.items && q.current_index != null ? q.items - q.current_index - 1 : null;
+    const facts = q ? [
+      left != null ? `${left} more after this` : '',
+      q.shuffle_enabled ? 'Shuffle on' : '',
+      q.repeat_mode && q.repeat_mode !== 'off' ? `Repeat ${q.repeat_mode}` : '',
+    ].filter(Boolean).join(' · ') : '';
+
+    box.innerHTML = `<div class="music-h">Queue · ${esc(this.player?.name ?? '')}</div>`
+      + (q ? row('Now playing', q.current_item) + (q.next_item ? row('Up next', q.next_item) : '<div class="mq-h">Up next</div><div class="music-lib-msg">Nothing after this one</div>')
+        + (facts ? `<div class="mq-facts">${esc(facts)}</div>` : '')
+        : `<div class="music-lib-msg">${esc(this.queueMsg)}</div>`);
   }
 
   private renderCats(): void {
@@ -445,7 +605,7 @@ export class MusicPanel {
   private renderBrowse(): void {
     const level = this.levels.at(-1);
     this.el.classList.toggle('browsing', !!level);
-    child(this.el, '.music-hint').textContent = level ? 'Back to go back' : this.grouping ? 'Back when done' : 'Back to close';
+    child(this.el, '.music-hint').textContent = level ? 'Back to go back' : this.grouping ? 'Back when done' : this.queueOpen ? 'Back to close the queue' : 'Back to close';
 
     if (!level) {
       this.drawnLevel = null;
@@ -518,6 +678,13 @@ export class MusicPanel {
         return;
       }
 
+      if (this.queueOpen) {
+        this.queueOpen = false;
+        this.render();
+
+        return;
+      }
+
       this.close();
 
       return;
@@ -525,13 +692,15 @@ export class MusicPanel {
 
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(k)) return;
     e.preventDefault();
+    const spkCount = this.players.length + (this.grouping ? 1 : 0);
 
     if (k === 'Enter' || k === ' ') {
-      if (this.area === 'controls') this.press(CONTROLS[this.ctrl]);
+      if (this.area === 'controls') this.press(CONTROL_ROWS[this.ctrlRow][this.ctrl]);
       else if (this.area === 'speakers' && this.grouping) {
         const pl = this.players[this.spk];
 
-        if (this.spk === this.active) this.grouping = false;
+        if (this.spk === this.players.length) this.everywhere();
+        else if (this.spk === this.active) this.grouping = false;
         else if (pl) this.toggleGroup(pl.entity);
       } else if (this.area === 'speakers') {
         this.active = this.spk;
@@ -554,38 +723,77 @@ export class MusicPanel {
       return;
     }
 
+    // What's on the right: the browser, the queue (nothing to focus), or speakers and library.
+    const right = (): Area | null => (this.levels.length ? 'browse' : this.queueOpen ? null : 'speakers');
+
     if (this.area === 'controls') {
+      const row = CONTROL_ROWS[this.ctrlRow];
+
       if (k === 'ArrowLeft') this.ctrl = Math.max(0, this.ctrl - 1);
       if (k === 'ArrowRight') {
-        if (this.ctrl < CONTROLS.length - 1) this.ctrl++;
-        else this.area = this.levels.length ? 'browse' : 'speakers';
+        if (this.ctrl < row.length - 1) this.ctrl++;
+        else if (right()) this.area = right()!;
       }
-    } else if (this.area === 'speakers') {
-      // Two columns of speakers.
-      if (k === 'ArrowUp') this.spk = Math.max(this.spk % 2, this.spk - 2);
-      if (k === 'ArrowDown') {
-        if (this.spk + 2 < this.players.length) this.spk += 2;
-        else if (this.cats.length && !this.grouping) {
-          this.area = 'cats';
-          this.cat = this.spk % 2 === 0 ? 0 : Math.max(0, this.cats.length - 1);
+      if (k === 'ArrowDown' && this.ctrlRow === 0) {
+        this.ctrlRow = 1;
+        this.ctrl = Math.min(this.ctrl, CONTROL_ROWS[1].length - 1);
+      }
+      if (k === 'ArrowUp') {
+        if (this.ctrlRow === 1) {
+          this.ctrlRow = 0;
+          this.ctrl = Math.min(this.ctrl + 1, CONTROL_ROWS[0].length - 1);
+        } else if (right() === 'browse') this.area = 'browse';
+        else if (right() === 'speakers') {
+          // Up from the controls goes to the library (or the speakers if there's no library).
+          if (this.cats.length && !this.grouping) {
+            this.area = 'cats';
+            this.cat = Math.floor((this.cats.length - 1) / CAT_COLS) * CAT_COLS;
+          } else {
+            this.area = 'speakers';
+            this.spk = Math.max(0, spkCount - 1);
+          }
         }
       }
-      if (k === 'ArrowRight' && this.spk % 2 === 0 && this.spk + 1 < this.players.length) this.spk++;
+    } else if (this.area === 'speakers') {
+      // Two columns of speakers (plus "Play everywhere" while grouping).
+      if (k === 'ArrowUp') this.spk = Math.max(this.spk % 2, this.spk - 2);
+      if (k === 'ArrowDown') {
+        if (this.spk + 2 < spkCount) this.spk += 2;
+        else if (this.spk % 2 === 0 && this.spk + 1 < spkCount && Math.floor(this.spk / 2) < Math.floor((spkCount - 1) / 2)) this.spk = spkCount - 1;
+        else if (this.cats.length && !this.grouping) {
+          this.area = 'cats';
+          this.cat = this.spk % 2 === 0 ? 0 : Math.min(CAT_COLS - 1, this.cats.length - 1);
+        }
+      }
+      if (k === 'ArrowRight' && this.spk % 2 === 0 && this.spk + 1 < spkCount) this.spk++;
       if (k === 'ArrowLeft') {
         if (this.spk % 2 === 1) this.spk--;
         else if (!this.grouping) this.area = 'controls';
       }
     } else if (this.area === 'cats') {
-      // One row of buttons.
-      if (k === 'ArrowRight' && this.cat + 1 < this.cats.length) this.cat++;
+      // A grid of library buttons, CAT_COLS across.
+      const col = this.cat % CAT_COLS;
+
+      if (k === 'ArrowRight' && col < CAT_COLS - 1 && this.cat + 1 < this.cats.length) this.cat++;
       if (k === 'ArrowLeft') {
-        if (this.cat > 0) this.cat--;
+        if (col > 0) this.cat--;
         else this.area = 'controls';
       }
+      if (k === 'ArrowDown') {
+        if (this.cat + CAT_COLS < this.cats.length) this.cat += CAT_COLS;
+        else if (Math.floor(this.cat / CAT_COLS) < Math.floor((this.cats.length - 1) / CAT_COLS)) this.cat = this.cats.length - 1;
+        else {
+          this.area = 'controls';
+          this.ctrlRow = 0;
+        }
+      }
       if (k === 'ArrowUp') {
-        this.area = 'speakers';
-        const lastRow = this.players.length - (this.players.length % 2 === 0 ? 2 : 1);
-        this.spk = Math.min(this.players.length - 1, lastRow + (this.cat >= this.cats.length / 2 ? 1 : 0));
+        if (this.cat >= CAT_COLS) this.cat -= CAT_COLS;
+        else {
+          this.area = 'speakers';
+          const lastRow = this.players.length - (this.players.length % 2 === 0 ? 2 : 1);
+          this.spk = Math.min(this.players.length - 1, lastRow + (col >= CAT_COLS / 2 ? 1 : 0));
+        }
       }
     } else {
       // The browser: a grid that scrolls up and down.
