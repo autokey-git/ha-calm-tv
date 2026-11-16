@@ -24,7 +24,7 @@ const ICON = {
 };
 
 const lineIcon = (d: string) =>
-  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 /** Icons for the media browser's folders, matched by name (as Music Assistant's sidebar has them). */
 const FOLDER_ICONS: [RegExp, string][] = [
   [/artist/i, lineIcon('<circle cx="10" cy="8" r="3.5"/><path d="M3.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 4v8.5a2 2 0 1 1-1.5-1.94"/>')],
