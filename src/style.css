@@ -577,9 +577,10 @@ html.glass-tint .mq-list { -webkit-backdrop-filter: none; backdrop-filter: none;
 .mql-sub { margin-top: 2px; font-size: 19px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mq-tip { color: var(--ink-faint); }
 /* The gear at the bottom right: Music Assistant's connection (for the full queue). */
-.music-gear { position: absolute; right: 100px; bottom: 26px; width: 64px; height: 64px; border: 0; border-radius: 22px; background: transparent; color: var(--ink-faint); display: flex; align-items: center; justify-content: center; transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease; }
-.music-gear svg { width: 34px; height: 34px; }
-.music-gear.focus { background: var(--plate); box-shadow: var(--plate-edge); color: var(--ink); }
+.music-gear { position: absolute; right: 96px; bottom: 14px; width: 84px; height: 84px; border: 0; border-radius: 28px; color: var(--ink); opacity: 0.86; display: flex; align-items: center; justify-content: center; background: var(--veil); box-shadow: var(--plate-edge); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); transition: background 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease; }
+html.glass-tint .music-gear { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
+.music-gear svg { width: 44px; height: 44px; }
+.music-gear.focus { background: var(--plate); box-shadow: var(--plate-edge); opacity: 1; }
 .mq-h { font-size: 20px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin: 28px 0 12px 4px; }
 .mq-row { display: flex; align-items: center; gap: 28px; padding: 18px; border-radius: 30px; background: var(--veil); box-shadow: var(--plate-edge); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 .mq-art { width: 132px; height: 132px; flex: 0 0 auto; border-radius: 18px; overflow: hidden; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
@@ -614,4 +615,4 @@ html.glass-tint .mq-list { -webkit-backdrop-filter: none; backdrop-filter: none;
 .mcard.focus .mcard-name { color: var(--ink); }
 .mcard.started .mcard-name::before { content: '▶ '; color: var(--warm); }
 .music-lib-msg { font-size: 22px; color: var(--ink-faint); padding: 8px 4px; }
-.music-hint { position: absolute; right: 184px; bottom: 44px; font-size: 20px; color: var(--ink-faint); }
+.music-hint { position: absolute; right: 204px; bottom: 42px; font-size: 20px; color: var(--ink-faint); }

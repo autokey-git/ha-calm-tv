@@ -83,6 +83,9 @@ export function guessMaUrl(): string {
   }
 }
 
+/** A pasted token without what tends to come along: spaces, line breaks, quotes, "Bearer ". */
+const cleanToken = (raw: string) => raw.replace(/\s+/g, '').replace(/^["']|["']$/g, '').replace(/^Bearer/i, '');
+
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void; partial: unknown[] | null; timer: number };
 
 class MusicAssistant {
@@ -113,7 +116,7 @@ class MusicAssistant {
 
     try {
       localStorage.setItem(URL_KEY, url);
-      localStorage.setItem(TOKEN_KEY, token.trim());
+      localStorage.setItem(TOKEN_KEY, cleanToken(token));
     } catch {
       return 'This TV couldn’t save it (storage is off).';
     }
@@ -177,6 +180,8 @@ class MusicAssistant {
         if (!greeted && 'server_id' in msg) {
           greeted = true;
 
+          console.info('Music Assistant', msg.server_version, 'schema', msg.schema_version);
+
           if (Number(msg.schema_version) < 28) {
             clearTimeout(timer);
             this.connected = true;
@@ -193,10 +198,12 @@ class MusicAssistant {
               this.problem = '';
               resolve();
             })
-            .catch(() => {
+            .catch((err: Error) => {
               clearTimeout(timer);
               ws.close();
-              reject(this.fail('Music Assistant refused the token'));
+              // Say why, and what the TV has, so a mistyped or cut-off token is easy to spot.
+              const t = token.length > 12 ? `${token.slice(0, 6)}…${token.slice(-6)}` : token;
+              reject(this.fail(`Music Assistant refused the token (${err.message}). This TV has ${token.length} characters: ${t}`));
             });
 
           return;
@@ -240,7 +247,7 @@ class MusicAssistant {
     if ('error_code' in msg) {
       this.pending.delete(id);
       clearTimeout(p.timer);
-      p.reject(new Error(String(msg.details ?? 'Music Assistant error')));
+      p.reject(new Error(String(msg.details ?? `error ${String(msg.error_code)}`)));
 
       return;
     }
