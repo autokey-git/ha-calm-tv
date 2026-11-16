@@ -78,6 +78,7 @@ export function watchDoors(mount: HTMLElement): void {
   /** Each door's last known state; a door only pops up when it changes to open (not when we connect). */
   const was = new Map<string, string>();
   const closedAt = new Map<string, number>();
+  const openedAt = new Map<string, number>();
   const timers = new Map<string, number>();
 
   ha.onEntities(() => {
@@ -100,10 +101,18 @@ export function watchDoors(mount: HTMLElement): void {
         continue;
       }
 
-      // Only a real opening: from closed, and not the flicker right after closing.
-      if (before !== 'off' || Date.now() - (closedAt.get(door.entity) ?? 0) < BOUNCE_MS) continue;
-      show(door, false);
-      const after = (settings.config.doors?.leftOpen ?? 10) * 1000;
+      if (before !== 'off') continue;
+      const leftOpen = (settings.config.doors?.leftOpen ?? 10) * 1000;
+      let after = leftOpen;
+
+      // Open again right after closing is the sensor flickering (as the door shuts, or as it
+      // opens): no new pop-up, but the "left open" countdown carries on from the real opening.
+      if (Date.now() - (closedAt.get(door.entity) ?? 0) < BOUNCE_MS) {
+        after = Math.max(0, leftOpen - (Date.now() - (openedAt.get(door.entity) ?? Date.now())));
+      } else {
+        openedAt.set(door.entity, Date.now());
+        show(door, false);
+      }
       timers.set(door.entity, window.setTimeout(() => {
         timers.delete(door.entity);
         if (ha.entities[door.entity]?.state === 'on') show(door, true);
