@@ -126,7 +126,6 @@ html.glass-tint .gb-veil { background: rgba(8, 14, 18, 0.5); }
 .cwx-ico { width: 40px; height: 40px; display: flex; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)); }
 .cwx-ico svg { width: 100%; height: 100%; }
 .cwx-temp { font-size: 40px; font-weight: 600; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
-.cwx-cond { font-size: 24px; font-weight: 500; color: var(--ink-dim); margin-left: 4px; }
 .cdate {
   margin: 4px 0 0; font-size: 24px; font-weight: 500; letter-spacing: -0.4px;
   color: var(--ink-dim); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.26);

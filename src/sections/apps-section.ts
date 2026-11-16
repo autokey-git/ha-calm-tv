@@ -165,14 +165,14 @@ export class AppsSection implements Section {
     if (a) this.onLaunch(a);
   }
 
-  /** The weather right now beside the clock: icon, temperature and condition; hidden without it. */
+  /** The weather right now beside the clock: icon and temperature; hidden without it. */
   setWeather(w: { condition: string; temperature: number } | null): void {
     const el = child(this.el, '.cwx');
     el.hidden = !w;
 
     if (!w) return;
-    el.innerHTML = `<span class="cwx-ico">${conditionIcon(w.condition)}</span><span class="cwx-temp">${Math.round(w.temperature)}°</span><span class="cwx-cond"></span>`;
-    child(el, '.cwx-cond').textContent = conditionLabel(w.condition);
+    el.innerHTML = `<span class="cwx-ico">${conditionIcon(w.condition)}</span><span class="cwx-temp">${Math.round(w.temperature)}°</span>`;
+    el.setAttribute('aria-label', conditionLabel(w.condition));
   }
 
   private tick(): void {
