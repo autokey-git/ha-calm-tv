@@ -24,7 +24,8 @@ import android.widget.TextView
  * Door pop-ups over whatever app is on screen: a small glass card in the top-right corner with an
  * open door and the door's name, for a few seconds. Like the doorbell window, the Home button
  * service draws it as an accessibility overlay, so it needs no extra permission, never takes
- * focus or touches, and never pauses the show. Several doors stack, newest at the bottom.
+ * focus or touches, and never pauses the show. Several doors stack, newest at the bottom. A "left
+ * open" pop-up stays until the page says the door closed.
  */
 class DoorPopups(private val service: AccessibilityService) {
     private val wm = service.getSystemService(WindowManager::class.java)
@@ -36,19 +37,39 @@ class DoorPopups(private val service: AccessibilityService) {
 
     private fun px(v: Float) = (v * unit).toInt()
 
-    fun show(name: String, left: Boolean) {
+    /** Pop-ups that stay until hidden ("left open"), by door. */
+    private val staying = HashMap<String, View>()
+
+    /**
+     * Shows a pop-up for a few seconds; with `stay`, until hide(id) instead (a backstop takes it
+     * away after half an hour, in case the page that would hide it is gone).
+     */
+    fun show(id: String, name: String, left: Boolean, stay: Boolean) {
         val box = stack ?: addStack() ?: return
+        if (stay) staying.remove(id)?.let { remove(it) }
         val card = card(name, left)
         box.addView(card)
         card.alpha = 0f
         card.translationY = -px(14f).toFloat()
         card.animate().alpha(1f).translationY(0f).setDuration(350).start()
+        if (stay) staying[id] = card
         handler.postDelayed({
-            card.animate().alpha(0f).setDuration(350).withEndAction {
-                box.removeView(card)
-                if (box.childCount == 0) removeStack()
-            }.start()
-        }, SHOW_MS)
+            if (stay && staying[id] === card) staying.remove(id)
+            remove(card)
+        }, if (stay) STAY_MAX_MS else SHOW_MS)
+    }
+
+    fun hide(id: String) {
+        staying.remove(id)?.let { remove(it) }
+    }
+
+    private fun remove(card: View) {
+        val box = stack ?: return
+        if (card.parent !== box) return
+        card.animate().alpha(0f).setDuration(350).withEndAction {
+            box.removeView(card)
+            if (box.childCount == 0) removeStack()
+        }.start()
     }
 
     private fun addStack(): LinearLayout? {
@@ -90,6 +111,7 @@ class DoorPopups(private val service: AccessibilityService) {
 
     fun close() {
         handler.removeCallbacksAndMessages(null)
+        staying.clear()
         removeStack()
     }
 
@@ -191,5 +213,6 @@ class DoorPopups(private val service: AccessibilityService) {
     companion object {
         private const val TAG = "CalmTV"
         private const val SHOW_MS = 5000L
+        private const val STAY_MAX_MS = 30 * 60 * 1000L
     }
 }

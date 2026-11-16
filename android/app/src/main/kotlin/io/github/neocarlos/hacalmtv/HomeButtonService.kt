@@ -46,11 +46,16 @@ class HomeButtonService : AccessibilityService() {
     }
 
     /** A door pop-up in the corner over the current app (see DoorPopups). Safe to call from any thread. */
-    fun showDoor(name: String, left: Boolean) {
+    fun showDoor(id: String, name: String, left: Boolean, stay: Boolean) {
         Handler(Looper.getMainLooper()).post {
             val popups = doors ?: DoorPopups(this).also { doors = it }
-            popups.show(name, left)
+            popups.show(id, name, left, stay)
         }
+    }
+
+    /** Takes away a door's pop-up that stays (see showDoor). */
+    fun hideDoor(id: String) {
+        Handler(Looper.getMainLooper()).post { doors?.hide(id) }
     }
 
     /** Pauses whatever app is playing (Netflix, YouTube...) the same way a remote's pause button does. */

@@ -107,7 +107,7 @@ const ConfigSchema = v.object({
   /**
    * A small pop-up in the corner when a door opens, even over other apps (it never pauses them):
    * an open door with the door's name for a few seconds. A door still open after `leftOpen` seconds
-   * (default 10) pops up again with a red "!" and "Left open". Off unless doors are listed.
+   * (default 10) pops up again with a red "!" and "Left open", until it closes. Off unless doors are listed.
    */
   doors: v.optional(
     v.object({
