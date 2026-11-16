@@ -3,8 +3,8 @@
 ## Unreleased
 
 - **Living sky:** with `"sky"` in calm-tv.json the background follows the sun (warmer dawn and dusk, a
-  darker, bluer night with stars) and draws the weather over it: rain, snow, fog, cloud shadows and
-  lightning. Backgrounds can also come in dawn/day/dusk/night versions (`NN-name.night.jpg`).
+  darker, bluer night with stars) and draws the weather over it: rain and pouring rain, snow with depth, fog, cloud cover and lightning
+  bolts. A scene map (`map` in `backgrounds`) adds ripples on the water, clouds mirrored in it and snow settling on the ground. Backgrounds can also come in dawn/day/dusk/night versions (`NN-name.night.jpg`).
   Preview with `?demo&sky=night&wx=snowy`.
 - **Music panel:** a Music tile in the dock (with `"music"` in calm-tv.json) opens now playing,
   controls, speakers and library buttons (Artists, Albums, Playlists, Radio…) that open a browsable grid, through Home Assistant (made for Music Assistant). In demo mode too.

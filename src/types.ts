@@ -1,4 +1,5 @@
 import type { Variants } from './variants';
+import type { SceneMap } from './sky-fx';
 
 export interface App {
   /** Display name, shown as the tile label. */
@@ -16,6 +17,8 @@ export interface Wallpaper {
   url: string;
   /** Versions for the times of day, if it has them (see variants.ts). */
   variants?: Variants;
+  /** Where its sky, water and ground are, for the weather (see sky-fx.ts). */
+  map?: SceneMap;
 }
 
 /** light, switch: on/off. cover: curtains/blinds. lock, sensor: status only. scene: a scene picker (an HA select entity, e.g. from Hue). */

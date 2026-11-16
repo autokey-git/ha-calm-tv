@@ -34,7 +34,18 @@ const DeviceSchema = v.object({
 
 /** The screens, in their default order (↓ moves through them). */
 /** A background's versions for the times of day (see variants.ts). */
-const PHASE_URLS = { dawn: v.optional(v.string()), day: v.optional(v.string()), dusk: v.optional(v.string()), night: v.optional(v.string()) };
+const Outline = v.optional(v.array(v.tuple([v.number(), v.number()]), 'should be a list of [x, y] points'));
+/** Where a background's sky, water and ground are, for the living sky's weather (sky-fx.ts). */
+const SceneMapSchema = v.optional(
+  v.object({ sky: Outline, water: Outline, ground: Outline, fog: v.optional(v.number()) }),
+);
+const PHASE_URLS = {
+  dawn: v.optional(v.string()),
+  day: v.optional(v.string()),
+  dusk: v.optional(v.string()),
+  night: v.optional(v.string()),
+  map: SceneMapSchema,
+};
 
 export const SCREENS = ['apps', 'smarthome', 'calendar', 'weather'] as const;
 

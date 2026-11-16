@@ -244,9 +244,27 @@ With `sky` in the file, the background follows the real time of day and the weat
   real sunrise and sunset and blend in gradually. Any photo or video gets a code-only look: warmer at
   dawn and dusk, darker and bluer at night, with stars in the open sky when it's clear. A background
   whose name says when it was made ("…Sunset", "…Night") isn't tinted toward that time again.
-- **Weather** from `weather` (default the `weather` entity above): rain, heavier rain when it pours,
-  snow, low fog, drifting cloud shadows and the odd lightning flash, drawn by the app over any
-  background. `"effects": false` keeps the time of day without them.
+- **Weather** from `weather` (default the `weather` entity above): rain, much heavier rain when it
+  pours, snow with near and far flakes, fog, cloud cover lit for the time of day, and lightning flashes
+  with the odd forked bolt, drawn by the app over any background. `"effects": false` keeps the time of
+  day without them.
+- **Scene map:** tell it where a background's sky, water and ground are, and the weather fits the
+  picture: clouds and bolts stay in the sky (and the lake mirrors the clouds), raindrops ring on the
+  water, fog lies at the water line, and snow slowly settles on the ground in front (and melts after).
+  Outlines are lists of `[x, y]` points as fractions of the picture (0 = left/top, 1 = right/bottom):
+
+  ```json
+  "map": {
+    "sky": [[0, 0], [1, 0], [1, 0.3], [0.5, 0.35], [0, 0.25]],
+    "water": [[0, 0.55], [1, 0.57], [1, 0.8], [0, 0.82]],
+    "ground": [[0, 0.82], [1, 0.8], [1, 1], [0, 1]],
+    "fog": 0.55
+  }
+  ```
+
+  Put it next to `"url"` in `backgrounds`. Without one, the sky is everything above the middle of
+  the picture, and there are no ripples or settling snow. A test hook: `?snowcover=0.8` starts with
+  snow already on the ground.
 - **Versions for each time of day:** a background can come in four versions, named
   `NN-name.dawn.jpg`, `NN-name.day.jpg`, `NN-name.dusk.jpg` and `NN-name.night.jpg` (or `.mp4`) in
   `src/wallpapers/` or `src/videos/`. They show as one background, and the version for the time of

@@ -313,7 +313,7 @@ export class CalmTv {
     // The version for this time of day, if the clip has them (see sky.ts).
     const pick = sky.pick(clip.name, clip.url, clip.variants);
     this.videoPick = pick.url;
-    sky.setScene(clip.name, pick.native);
+    sky.setScene(clip.name, pick.native, clip.map);
 
     try {
       // Clips on another server (Home Assistant's www folder) can't be read into memory (CORS),
@@ -374,7 +374,7 @@ export class CalmTv {
   private photoUrl(n: number): string {
     const w = wallpapers[n];
     const pick = sky.pick(w.name, w.url, w.variants);
-    sky.setScene(w.name, pick.native);
+    sky.setScene(w.name, pick.native, w.map);
 
     return pick.url;
   }

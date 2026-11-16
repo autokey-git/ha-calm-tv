@@ -1,3 +1,4 @@
+import type { SceneMap } from './sky-fx';
 import { groupByPhase, type Variants } from './variants';
 
 // Auto-discover every looping clip dropped into src/videos/ (1080p mp4, no audio, ideally under ~20 MB:
@@ -11,6 +12,8 @@ export interface Clip {
   url: string;
   /** Versions for the times of day (NN-name.night.mp4 …), if it has them; see variants.ts. */
   variants?: Variants;
+  /** Where its sky, water and ground are, for the weather (see sky-fx.ts). */
+  map?: SceneMap;
   /** Small still for the picker ('' if there isn't one). */
   thumb: string;
 }
