@@ -256,10 +256,10 @@ class MainActivity : Activity() {
         /** True while Calm TV is the app on screen. */
         @Volatile
         var inFront = false
+            private set
 
         /** Set by the page (NativeBridge.setVolumeKeys) while the Music panel is open. */
         @Volatile
         var volumeKeysToPage = false
-            private set
     }
 }
