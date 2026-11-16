@@ -749,3 +749,6 @@ html.sp-only body > :not(.sp) { display: none; }
 .sp-climate .adj b.off { color: var(--ink-dim); }
 .sp-sensor.asking { box-shadow: var(--plate-edge), 0 0 0 3px #e9a56a; }
 .sp-sensor.asking .s { color: #e9a56a; }
+.sp-climate .adj .pt.edit { gap: 8px; }
+.sp-climate .adj .pt i { width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); display: inline-flex; align-items: center; justify-content: center; align-self: center; font-style: normal; font-size: 20px; color: var(--ink); }
+.sp-climate .adj .pt.edit { gap: 12px; }

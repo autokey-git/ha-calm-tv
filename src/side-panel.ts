@@ -53,7 +53,7 @@ class SidePanel {
    * A thermostat holding a range (heat/cool): both set points, which one ↑ ↓ change, and until
    * when to show them instead of HA's older values.
    */
-  private range: { entity: string; lo: number; hi: number; which: 'lo' | 'hi'; until: number } | null = null;
+  private range: { entity: string; lo: number; hi: number; which: 'lo' | 'hi'; until: number; editing?: boolean } | null = null;
   /** A garage door asks for OK a second time before it moves: which one, and until when. */
   private confirm: { entity: string; until: number } | null = null;
   /** The camera opened big, if any. */
@@ -149,7 +149,8 @@ class SidePanel {
     f?.el.classList.toggle('adjusting', this.adjusting);
     f?.el.scrollIntoView({ block: 'nearest' });
     this.hint.textContent = this.camera ? 'Back to close the camera'
-      : this.adjusting && this.range ? '← → heat or cool · ↑ ↓ to change · OK when done'
+      : this.adjusting && this.range?.editing ? '← → to change · OK when done'
+      : this.adjusting && this.range ? '← → heat or cool · OK to change it · Back when done'
       : this.adjusting ? '← → to change · OK when done'
       : f?.kind === 'sensor' && f.device?.control ? `OK to ${f.device.on ? 'close' : 'open'} · Back or ★ to close`
       : f?.kind === 'climate' ? 'OK to change the temperature · Back or ★ to close'
@@ -169,10 +170,16 @@ class SidePanel {
       it.el.classList.toggle('warm', warm);
       const r = this.rangeOf(d);
       const adjusting = this.adjusting && this.focused === it;
-      const point = (v: number, which: 'lo' | 'hi', label: string) =>
-        `<span class="pt ${which}${adjusting && r?.which === which ? ' pick' : ''}"><small>${label}</small>${v}°</span>`;
+      const point = (v: number, which: 'lo' | 'hi', label: string) => {
+        const picked = adjusting && r?.which === which;
+        const editing = picked && this.range?.editing;
+
+        return `<span class="pt ${which}${picked ? ' pick' : ''}${editing ? ' edit' : ''}"><small>${label}</small>${editing ? '<i>−</i>' : ''}${v}°${editing ? '<i>+</i>' : ''}</span>`;
+      };
       it.el.innerHTML = `<div class="n">${esc(d.name)}</div><div class="t">${d.current ?? '--'}°</div><div class="s">${esc(doing || '')}</div>`
         + (d.setpoint !== undefined ? `<div class="adj"><i>−</i><b>${d.setpoint}°</b><i>+</i></div>`
+          // While one set point is open for changing, the other steps aside to make room.
+          : r && adjusting && this.range?.editing ? `<div class="adj rng">${r.which === 'lo' ? point(r.lo, 'lo', 'Heat') : point(r.hi, 'hi', 'Cool')}</div>`
           : r ? `<div class="adj rng">${point(r.lo, 'lo', 'Heat')}${point(r.hi, 'hi', 'Cool')}</div>`
           : `<div class="adj"><b class="off">${esc(cap(d.mode ?? '') || 'Off')}</b></div>`);
     } else if (it.kind === 'door' && it.door) {
@@ -258,6 +265,7 @@ class SidePanel {
       e.preventDefault();
 
       if (this.camera) this.closeCamera();
+      else if (this.adjusting && this.range?.editing) this.range.editing = false;
       else if (this.adjusting) this.adjusting = false;
       else window.CalmTvPanel?.close();
       this.render();
@@ -270,11 +278,15 @@ class SidePanel {
     if (this.adjusting && f?.device && this.range && f.device.setpoint === undefined) {
       const r = this.range;
       const d = f.device;
-      const step = k === 'ArrowUp' ? 1 : k === 'ArrowDown' ? -1 : 0;
+      // First ← → pick Heat or Cool and OK opens it; then any arrow changes it and OK is done.
+      const step = !r.editing ? 0 : k === 'ArrowUp' || k === 'ArrowRight' ? 1 : k === 'ArrowDown' || k === 'ArrowLeft' ? -1 : 0;
 
-      if (k === 'Enter') this.adjusting = false;
-      else if (k === 'ArrowLeft') r.which = 'lo';
-      else if (k === 'ArrowRight') r.which = 'hi';
+      if (k === 'Enter' && r.editing) {
+        r.editing = false;
+        this.adjusting = false;
+      } else if (k === 'Enter') r.editing = true;
+      else if (!r.editing && k === 'ArrowLeft') r.which = 'lo';
+      else if (!r.editing && k === 'ArrowRight') r.which = 'hi';
       else if (step) {
         // Heat stays at least 3° below cool, as most thermostats insist.
         const min = d.minTemp ?? 45, max = d.maxTemp ?? 90;
@@ -334,7 +346,7 @@ class SidePanel {
 
         if (r) {
           const cooling = ha.entities[d.entity]?.attributes.hvac_action === 'cooling';
-          this.range = { entity: d.entity, lo: r.lo, hi: r.hi, which: cooling ? 'hi' : 'lo', until: Date.now() + 8000 };
+          this.range = { entity: d.entity, lo: r.lo, hi: r.hi, which: cooling ? 'hi' : 'lo', until: Date.now() + 8000, editing: false };
           this.adjusting = true;
         }
       }
