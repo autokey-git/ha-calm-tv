@@ -77,6 +77,8 @@ export class SettingsPanel {
   private rowEls: HTMLElement[] = [];
   private open = false;
   private confirmSignOut = false;
+  /** When the first sign-out press came: the second must come a moment later, not straight after. */
+  private confirmAt = 0;
   private confirmTimer = 0;
   /** OK presses right after opening belong to the press that opened the panel. */
   private openedAt = 0;
@@ -146,8 +148,13 @@ export class SettingsPanel {
             }
 
             // Signing out takes two presses, so a stray OK can't do it.
+            // A remote that doubles presses (or a held OK) mustn't sign out: the second press only
+            // counts after a short pause.
+            if (this.confirmSignOut && Date.now() - this.confirmAt < 1000) return;
+
             if (!this.confirmSignOut) {
               this.confirmSignOut = true;
+              this.confirmAt = Date.now();
               clearTimeout(this.confirmTimer);
               this.confirmTimer = window.setTimeout(() => {
                 this.confirmSignOut = false;
@@ -324,6 +331,8 @@ export class SettingsPanel {
     if (row.menu) {
       this.stack.push({ menu: row.menu, focus: 0 });
       this.confirmSignOut = false;
+      // The OK that opened this menu can arrive twice; the second mustn't press its first row.
+      this.openedAt = Date.now();
       this.build();
 
       return;
