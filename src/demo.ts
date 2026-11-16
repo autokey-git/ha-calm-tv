@@ -23,7 +23,7 @@ import artB from './wallpapers/01-stylized-forest-brook.jpg?url';
  *  - Only the backgrounds shipped in the repo are offered.
  *  - ?demo&at=2026-11-14T18:30 sets the clock (it keeps running from there), so recordings match.
  *  - On a touch screen, an on-screen remote (demo-remote.ts).
- *  - In the browser console: ctDemo.ring() rings the doorbell; ctDemo.door('binary_sensor.front_door', true) opens a door; ctDemo.caption('Title', 'detail')
+ *  - In the browser console: ctDemo.ring() rings the doorbell; ctDemo.door('binary_sensor.front_door', true) opens a door; ctDemo.range() gives the thermostat a heat/cool range; ctDemo.caption('Title', 'detail')
  *    shows a label at the top (ctDemo.caption('') hides it), for recordings.
  */
 
@@ -56,6 +56,8 @@ interface DemoAttributes {
   device_class?: string;
   current_temperature?: number;
   temperature?: number;
+  target_temp_low?: number;
+  target_temp_high?: number;
   min_temp?: number;
   max_temp?: number;
   options?: string[];
@@ -134,6 +136,7 @@ function initialStates() {
     ['light.porch', plainLight(true)],
     ['light.driveway', plainLight(false)],
     ['binary_sensor.garage_door', ['off', { device_class: 'garage_door' }]],
+    ['cover.garage_door', ['closed', { device_class: 'garage' }]],
     ['binary_sensor.front_door', ['off', { device_class: 'door' }]],
     ['weather.home', ['partlycloudy', { temperature: 48 }]],
     ['binary_sensor.back_door', ['off', { device_class: 'door' }]],
@@ -308,6 +311,8 @@ const ServiceCallSchema = v.object({
       brightness_pct: v.optional(v.number()),
       option: v.optional(v.string()),
       temperature: v.optional(v.number()),
+      target_temp_low: v.optional(v.number()),
+      target_temp_high: v.optional(v.number()),
       volume_level: v.optional(v.number()),
       media_content_id: v.optional(v.string()),
       group_members: v.optional(v.array(v.string())),
@@ -472,6 +477,9 @@ class DemoHome {
         const opening = call.service === 'open_cover';
         this.set(id, opening ? 'opening' : 'closing');
         window.setTimeout(() => this.set(id, opening ? 'open' : 'closed'), 4000);
+
+        // The garage door's open/closed sensor follows the door.
+        if (id === 'cover.garage_door') this.set('binary_sensor.garage_door', opening ? 'on' : 'off');
         break;
       }
 
@@ -480,6 +488,7 @@ class DemoHome {
         break;
       case 'climate.set_temperature':
         if (data.temperature !== undefined) this.set(id, s.state, { temperature: data.temperature });
+        else if (data.target_temp_low !== undefined) this.set(id, s.state, { target_temp_low: data.target_temp_low, target_temp_high: data.target_temp_high });
         break;
     }
 
@@ -574,6 +583,8 @@ export function startDemo(): void {
   window.ctDemo = {
     caption,
     door: (id = 'binary_sensor.front_door', open = true) => home.set(id, open ? 'on' : 'off'),
+    // The thermostat holding a range (heat/cool), as many do in auto mode.
+    range: () => home.set('climate.thermostat', 'heat_cool', { temperature: undefined, target_temp_low: 66, target_temp_high: 74 }),
     ring: () => {
       home.set('input_boolean.doorbell_ringing', 'on');
       window.setTimeout(() => home.set('input_boolean.doorbell_ringing', 'off'), 20000);
@@ -584,6 +595,6 @@ export function startDemo(): void {
 declare global {
   interface Window {
     /** Demo mode only: ring the doorbell, or show a label at the top (see demo.ts). */
-    ctDemo?: { ring(): void; caption(title: string, detail?: string): void; door(id?: string, open?: boolean): void };
+    ctDemo?: { ring(): void; caption(title: string, detail?: string): void; door(id?: string, open?: boolean): void; range(): void };
   }
 }

@@ -30,6 +30,7 @@ function device(d: DeviceConfig): Device {
     batteries: d.batteries,
     operator: d.operator,
     keypad: d.keypad,
+    control: d.control,
   };
 }
 

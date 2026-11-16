@@ -30,6 +30,8 @@ export interface Device {
   operator?: string;
   /** Lock: the keypad's battery sensor. */
   keypad?: string;
+  /** Sensor: the cover (garage door) the ★ side panel opens and closes with OK. */
+  control?: string;
 
   // Live values, filled in from Home Assistant.
   on?: boolean; // light / switch / camera (streaming) / cover (open) / sensor (open)

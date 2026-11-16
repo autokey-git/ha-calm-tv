@@ -22,6 +22,8 @@ class HomeButtonService : AccessibilityService() {
     private var doorbell: DoorbellOverlay? = null
     private var doors: DoorPopups? = null
     private var panel: SidePanelOverlay? = null
+    /** Keys pressed while the side panel was open, whose release the panel keeps too. */
+    private val panelKeys = mutableSetOf<Int>()
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -100,8 +102,18 @@ class HomeButtonService : AccessibilityService() {
             return true
         }
         // While the side panel is open it gets the arrows, OK and Back; the show keeps the rest.
+        // A press that went to the panel keeps its release too, even when that press closed the
+        // panel: otherwise the app underneath sees Back let go and closes (e.g. the music panel).
         val side = panel
-        if (side != null && side.key(event)) return true
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            if (side != null && side.key(event)) {
+                panelKeys.add(event.keyCode)
+                return true
+            }
+        } else if (event.action == KeyEvent.ACTION_UP && panelKeys.remove(event.keyCode)) {
+            side?.key(event)
+            return true
+        }
         if (event.keyCode == KeyEvent.KEYCODE_HOME && !Prefs.usingGoogleHome(this)) {
             side?.close()
             if (event.action == KeyEvent.ACTION_UP) showCalmTv("home key")

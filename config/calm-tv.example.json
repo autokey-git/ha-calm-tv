@@ -296,7 +296,8 @@
             {
               "type": "sensor",
               "entity": "binary_sensor.garage_door",
-              "name": "Garage door"
+              "name": "Garage door",
+              "control": "cover.garage_door"
             },
             {
               "type": "sensor",

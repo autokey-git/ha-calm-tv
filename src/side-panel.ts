@@ -1,7 +1,7 @@
 import { ha } from './ha';
 import { haPath, settings } from './config';
 import { zones, applyStates, WEATHER, cap } from './home-data';
-import { attributes, MediaPlayerAttributes, WeatherAttributes } from './ha-data';
+import { attributes, ClimateAttributes, MediaPlayerAttributes, WeatherAttributes } from './ha-data';
 import { conditionIcon } from './sections/weather-section';
 import { DOOR_ICON } from './doors';
 import type { Device } from './types';
@@ -49,6 +49,13 @@ class SidePanel {
   /** OK on a thermostat: ←/→ (or ↑/↓) change its set point until OK or Back. */
   private adjusting = false;
   private sendTimer = 0;
+  /**
+   * A thermostat holding a range (heat/cool): both set points, which one ↑ ↓ change, and until
+   * when to show them instead of HA's older values.
+   */
+  private range: { entity: string; lo: number; hi: number; which: 'lo' | 'hi'; until: number } | null = null;
+  /** A garage door asks for OK a second time before it moves: which one, and until when. */
+  private confirm: { entity: string; until: number } | null = null;
   /** The camera opened big, if any. */
   private camera: Device | null = null;
 
@@ -142,7 +149,9 @@ class SidePanel {
     f?.el.classList.toggle('adjusting', this.adjusting);
     f?.el.scrollIntoView({ block: 'nearest' });
     this.hint.textContent = this.camera ? 'Back to close the camera'
+      : this.adjusting && this.range ? '← → heat or cool · ↑ ↓ to change · OK when done'
       : this.adjusting ? '← → to change · OK when done'
+      : f?.kind === 'sensor' && f.device?.control ? `OK to ${f.device.on ? 'close' : 'open'} · Back or ★ to close`
       : f?.kind === 'climate' ? 'OK to change the temperature · Back or ★ to close'
       : f?.kind === 'music' ? 'OK to play or pause · Back or ★ to close'
       : f?.kind === 'camera' ? 'OK for a bigger picture · Back or ★ to close'
@@ -154,19 +163,29 @@ class SidePanel {
 
     if (it.kind === 'climate' && d) {
       const action = ha.entities[d.entity]?.attributes.hvac_action;
-      const doing = typeof action === 'string' && action !== 'off' ? cap(action) : cap(d.mode);
+      const doing = typeof action === 'string' && action !== 'off' ? cap(action) : d.mode === 'heat_cool' ? 'Auto' : cap(d.mode);
       const warm = d.mode === 'heat' || action === 'heating';
       it.el.classList.toggle('cool', d.mode === 'cool' || action === 'cooling');
       it.el.classList.toggle('warm', warm);
+      const r = this.rangeOf(d);
+      const adjusting = this.adjusting && this.focused === it;
+      const point = (v: number, which: 'lo' | 'hi', label: string) =>
+        `<span class="pt ${which}${adjusting && r?.which === which ? ' pick' : ''}"><small>${label}</small>${v}°</span>`;
       it.el.innerHTML = `<div class="n">${esc(d.name)}</div><div class="t">${d.current ?? '--'}°</div><div class="s">${esc(doing || '')}</div>`
-        + (d.setpoint === undefined ? `<div class="adj"><b>${esc(d.status ?? '')}</b></div>` : `<div class="adj"><i>−</i><b>${d.setpoint}°</b><i>+</i></div>`);
+        + (d.setpoint !== undefined ? `<div class="adj"><i>−</i><b>${d.setpoint}°</b><i>+</i></div>`
+          : r ? `<div class="adj rng">${point(r.lo, 'lo', 'Heat')}${point(r.hi, 'hi', 'Cool')}</div>`
+          : `<div class="adj"><b class="off">${esc(cap(d.mode ?? '') || 'Off')}</b></div>`);
     } else if (it.kind === 'door' && it.door) {
       const open = ha.entities[it.door.entity]?.state === 'on';
       it.el.classList.toggle('open', open);
       it.el.innerHTML = `${open ? DOOR_ICON : DOOR_SHUT}<div><div class="n">${esc(it.door.name.replace(/\s+door$/i, ''))}</div><div class="s">${open ? 'Open' : 'Closed'}</div></div>`;
     } else if (it.kind === 'sensor' && d) {
       it.el.classList.toggle('open', !!d.on && !d.occupancy);
-      it.el.innerHTML = `${d.occupancy ? SENSOR : /garage/i.test(d.entity + d.name) ? GARAGE : d.on ? DOOR_ICON : DOOR_SHUT}<div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.status ?? '')}</div></div>`;
+      const asking = this.confirm?.entity === d.control && Date.now() < (this.confirm?.until ?? 0);
+      const moving = d.control ? ha.entities[d.control]?.state : undefined;
+      const status = asking ? `OK again to ${d.on ? 'close' : 'open'}` : moving === 'opening' || moving === 'closing' ? cap(moving) : d.status ?? '';
+      it.el.classList.toggle('asking', asking);
+      it.el.innerHTML = `${d.occupancy ? SENSOR : /garage/i.test(d.entity + d.name) ? GARAGE : d.on ? DOOR_ICON : DOOR_SHUT}<div><div class="n">${esc(d.name)}</div><div class="s">${esc(status)}</div></div>`;
     } else if (it.kind === 'music') {
       const p = this.player();
       const s = p ? ha.entities[p] : undefined;
@@ -189,6 +208,38 @@ class SidePanel {
         im.dataset.at = String(Date.now());
       }
     }
+  }
+
+  /** A thermostat's heat and cool set points, while it holds a range (the one being changed wins). */
+  private rangeOf(d: Device): { lo: number; hi: number; which: 'lo' | 'hi' } | undefined {
+    const r = this.range;
+
+    if (r && r.entity === d.entity && (this.adjusting || Date.now() < r.until)) return r;
+    const s = ha.entities[d.entity];
+    const a = s ? attributes(s, ClimateAttributes) : undefined;
+
+    if (a?.target_temp_low === undefined || a.target_temp_high === undefined) return undefined;
+
+    return { lo: Math.round(a.target_temp_low), hi: Math.round(a.target_temp_high), which: 'lo' };
+  }
+
+  /** OK on a garage door: the first press asks, a second within 4 s opens or closes it. */
+  private garage(d: Device): void {
+    const cover = d.control;
+
+    if (!cover) return;
+
+    if (this.confirm?.entity === cover && Date.now() < this.confirm.until) {
+      this.confirm = null;
+      const state = ha.entities[cover]?.state;
+      const service = state === 'open' || state === 'opening' ? 'close_cover' : state === 'closed' || state === 'closing' ? 'open_cover' : 'toggle';
+      void ha.call('cover', service, { entity_id: cover });
+
+      return;
+    }
+
+    this.confirm = { entity: cover, until: Date.now() + 4000 };
+    window.setTimeout(() => this.render(), 4100);
   }
 
   /** The speaker the Music row shows: one that's playing, else paused, else the first. */
@@ -215,6 +266,32 @@ class SidePanel {
     }
 
     if (this.camera) return;
+
+    if (this.adjusting && f?.device && this.range && f.device.setpoint === undefined) {
+      const r = this.range;
+      const d = f.device;
+      const step = k === 'ArrowUp' ? 1 : k === 'ArrowDown' ? -1 : 0;
+
+      if (k === 'Enter') this.adjusting = false;
+      else if (k === 'ArrowLeft') r.which = 'lo';
+      else if (k === 'ArrowRight') r.which = 'hi';
+      else if (step) {
+        // Heat stays at least 3° below cool, as most thermostats insist.
+        const min = d.minTemp ?? 45, max = d.maxTemp ?? 90;
+
+        if (r.which === 'lo') r.lo = Math.min(r.hi - 3, Math.max(min, r.lo + step));
+        else r.hi = Math.min(max, Math.max(r.lo + 3, r.hi + step));
+        r.until = Date.now() + 8000;
+        d.holdUntil = r.until;
+        const lo = r.lo, hi = r.hi;
+        clearTimeout(this.sendTimer);
+        this.sendTimer = window.setTimeout(() => void ha.call('climate', 'set_temperature', { entity_id: d.entity, target_temp_low: lo, target_temp_high: hi }), 900);
+      }
+      e.preventDefault();
+      this.render();
+
+      return;
+    }
 
     if (this.adjusting && f?.device) {
       const d = f.device;
@@ -248,7 +325,20 @@ class SidePanel {
   }
 
   private activate(it: Item): void {
-    if (it.kind === 'climate' && it.device?.setpoint !== undefined) this.adjusting = true;
+    if (it.kind === 'climate' && it.device) {
+      const d = it.device;
+
+      if (d.setpoint !== undefined) this.adjusting = true;
+      else {
+        const r = this.rangeOf(d);
+
+        if (r) {
+          const cooling = ha.entities[d.entity]?.attributes.hvac_action === 'cooling';
+          this.range = { entity: d.entity, lo: r.lo, hi: r.hi, which: cooling ? 'hi' : 'lo', until: Date.now() + 8000 };
+          this.adjusting = true;
+        }
+      }
+    } else if (it.kind === 'sensor' && it.device?.control) this.garage(it.device);
     else if (it.kind === 'music') {
       const p = this.player();
 

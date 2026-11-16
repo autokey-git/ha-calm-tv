@@ -740,3 +740,12 @@ html.sp-only body > :not(.sp) { display: none; }
 .sp.cam-open .sp-hint { position: relative; z-index: 1; }
 .sp-empty { font-size: 20px; color: var(--ink-dim); padding: 20px 8px; }
 .sp-hint { text-align: center; font-size: 18px; color: var(--ink-faint); }
+.sp-climate .adj.rng { gap: 10px; }
+.sp-climate .adj .pt { display: flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 14px; font-size: 24px; font-weight: 700; }
+.sp-climate .adj .pt small { font-size: 15px; font-weight: 600; color: var(--ink-dim); }
+.sp-climate .adj .pt.lo { color: #e9a56a; }
+.sp-climate .adj .pt.hi { color: #8ac4ff; }
+.sp-climate .adj .pt.pick { background: rgba(255, 255, 255, 0.22); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85); }
+.sp-climate .adj b.off { color: var(--ink-dim); }
+.sp-sensor.asking { box-shadow: var(--plate-edge), 0 0 0 3px #e9a56a; }
+.sp-sensor.asking .s { color: #e9a56a; }
