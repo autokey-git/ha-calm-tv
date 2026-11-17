@@ -46,6 +46,20 @@ export const MUSIC_BACKGROUNDS = ['none', 'glow', 'wash', 'solid'] as const;
 export type MusicBackground = (typeof MUSIC_BACKGROUNDS)[number];
 
 /** The screens, in their default order (↓ moves through them). */
+/** A background's versions for the times of day (see variants.ts). */
+const Outline = v.optional(v.array(v.tuple([v.number(), v.number()]), 'should be a list of [x, y] points'));
+/** Where a background's sky, water and ground are, for the living sky's weather (sky-fx.ts). */
+const SceneMapSchema = v.optional(
+  v.object({ sky: Outline, water: Outline, ground: Outline, fog: v.optional(v.number()) }),
+);
+const PHASE_URLS = {
+  dawn: v.optional(v.string()),
+  day: v.optional(v.string()),
+  dusk: v.optional(v.string()),
+  night: v.optional(v.string()),
+  map: SceneMapSchema,
+};
+
 export const SCREENS = ['apps', 'smarthome', 'music', 'calendar', 'weather'] as const;
 
 export type ScreenName = (typeof SCREENS)[number];
@@ -101,6 +115,20 @@ const ConfigSchema = v.object({
   ),
   /** Weather entity for the Weather screen and the Smart Home "Outside" line. */
   weather: v.optional(EntityId),
+  /**
+   * The living sky (off unless present): the background follows the time of day from `sun`
+   * (default sun.sun) and draws the weather from `weather` (default the Weather screen's entity).
+   * `effects: false` keeps the time of day but draws no rain, snow or fog. `versionsOnly: true` leaves
+   * backgrounds without their own dawn/day/dusk/night versions exactly as they are (no tint or stars).
+   */
+  sky: v.optional(
+    v.object({
+      sun: v.optional(EntityId),
+      weather: v.optional(EntityId),
+      effects: v.optional(v.boolean('should be true or false')),
+      versionsOnly: v.optional(v.boolean('should be true or false')),
+    }),
+  ),
   /** Calendar entities: `events` fill the Calendar bar; `meals` (optional) gives "Dinner · …" from today's all-day event. */
   calendar: v.optional(v.object({ events: v.optional(EntityId), meals: v.optional(EntityId) })),
   /**
@@ -164,8 +192,9 @@ const ConfigSchema = v.object({
   /** Extra backgrounds, e.g. files in Home Assistant's www folder ("/local/beach.jpg"). */
   backgrounds: v.optional(
     v.object({
-      photos: v.optional(v.array(v.object({ name: v.string(), url: v.string() }))),
-      videos: v.optional(v.array(v.object({ name: v.string(), url: v.string(), thumb: v.optional(v.string()) }))),
+      // Each can also have `dawn`, `dusk` and `night` versions (and `day`, if `url` isn't it), for the living sky.
+      photos: v.optional(v.array(v.object({ name: v.string(), url: v.string(), ...PHASE_URLS }))),
+      videos: v.optional(v.array(v.object({ name: v.string(), url: v.string(), thumb: v.optional(v.string()), ...PHASE_URLS }))),
     }),
   ),
 });

@@ -9,6 +9,20 @@ import { videos } from './videos';
 import { showSetup, SIGN_IN_NEXT } from './setup';
 import { ha } from './ha';
 import { watchStoredConfig } from './config-store';
+import { PHASES, type Phase, type Variants } from './variants';
+
+/** A background's dawn/day/dusk/night versions from calm-tv.json, as full addresses (undefined if none). */
+function phaseUrls(b: Partial<Record<Phase, string>>): Variants | undefined {
+  const out: Variants = {};
+
+  for (const p of PHASES) {
+    const url = b[p];
+
+    if (url) out[p] = haPath(url);
+  }
+
+  return Object.keys(out).length ? out : undefined;
+}
 
 async function main(): Promise<void> {
   // Everything specific to a home comes from calm-tv.json (see config.ts), or the made-up home in demo mode.
@@ -18,8 +32,8 @@ async function main(): Promise<void> {
   loadHome();
   loadApps();
   const bg = settings.config.backgrounds;
-  bg?.photos?.forEach((p) => wallpapers.push({ name: p.name, url: haPath(p.url) }));
-  bg?.videos?.forEach((v) => videos.push({ name: v.name, url: haPath(v.url), thumb: v.thumb ? haPath(v.thumb) : '' }));
+  bg?.photos?.forEach((p) => wallpapers.push({ name: p.name, url: haPath(p.url), variants: phaseUrls(p), map: p.map }));
+  bg?.videos?.forEach((v) => videos.push({ name: v.name, url: haPath(v.url), thumb: v.thumb ? haPath(v.thumb) : '', variants: phaseUrls(v), map: v.map }));
 
   if (new URLSearchParams(location.search).has('panel')) {
     (await import('./side-panel')).startSidePanel();

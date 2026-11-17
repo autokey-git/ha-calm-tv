@@ -1,0 +1,55 @@
+# Builds the TV app (debug APK) for this fork, so changes can be tried on a TV without a local
+# Android SDK. Signed with a fixed debug key (.github/ci/debug.keystore, the standard public
+# "android" debug password; not a secret) so each new build installs over the last one.
+# Only the project's own background videos are in the repo, so only those are built in.
+name: TV app (debug APK)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/**']
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Fixed debug key
+        run: mkdir -p ~/.android && cp .github/ci/debug.keystore ~/.android/debug.keystore
+
+      - run: npm ci
+
+      - name: Build
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          # gradle.properties points Gradle at a Mac's JDK; use the runner's instead.
+          sed -i '/^org.gradle.java.home/d' android/gradle.properties
+          npm run tv:apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk calm-tv-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calm-tv-debug-apk
+          path: calm-tv-debug.apk
+
+      - name: Publish as the "tv-latest" pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete tv-latest --yes --cleanup-tag || true
+          gh release create tv-latest calm-tv-debug.apk --prerelease --target "$GITHUB_SHA" \
+            --title "TV app, latest test build" --notes "Debug build of ${GITHUB_REF_NAME} at ${GITHUB_SHA::7}."

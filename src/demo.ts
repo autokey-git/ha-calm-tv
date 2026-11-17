@@ -9,6 +9,7 @@ import type { BrowseNode, CalendarEvent, CalendarResponse, ForecastEntry, Foreca
 import { videos } from './videos';
 import { wallpapers } from './wallpapers';
 import { showRemote } from './demo-remote';
+import { sky, PHASES } from './sky';
 import { ma } from './music-assistant';
 import artA from './demo-media/album-echoes.jpg?url';
 import artB from './wallpapers/01-stylized-forest-brook.jpg?url';
@@ -23,6 +24,8 @@ import artB from './wallpapers/01-stylized-forest-brook.jpg?url';
  *  - Only the backgrounds shipped in the repo are offered.
  *  - ?demo&at=2026-11-14T18:30 sets the clock (it keeps running from there), so recordings match.
  *  - On a touch screen, an on-screen remote (demo-remote.ts).
+ *  - ?demo&sky=night&wx=rainy holds the living sky at a time of day and weather; so does
+ *    ctDemo.sky('dusk', 'snowy') in the console (ctDemo.sky() follows the clock again).
  *  - In the browser console: ctDemo.ring() rings the doorbell; ctDemo.door('binary_sensor.front_door', true) opens a door; ctDemo.range() gives the thermostat a heat/cool range; ctDemo.caption('Title', 'detail')
  *    shows a label at the top (ctDemo.caption('') hides it), for recordings.
  */
@@ -666,7 +669,7 @@ export function startDemo(): void {
 
   // The example home, with the doorbell window on (for ctDemo.ring) and no backgrounds from Home Assistant.
   const config = decodeConfig(exampleConfig);
-  settings.config = { ...config, doorbell: { ...config.doorbell, window: true }, backgrounds: undefined };
+  settings.config = { ...config, doorbell: { ...config.doorbell, window: true }, backgrounds: undefined, sky: config.sky ?? {} };
 
   // ?demo&areas: no "rooms", so they're built from the demo's Areas (see demoRegistry).
   if (new URLSearchParams(location.search).has('areas')) settings.config = { ...settings.config, rooms: undefined };
@@ -692,6 +695,7 @@ export function startDemo(): void {
 
   window.ctDemo = {
     caption,
+    sky: (phase, condition) => sky.setPreview(PHASES.find((p) => p === phase), condition || undefined),
     door: (id = 'binary_sensor.front_door', open = true) => home.set(id, open ? 'on' : 'off'),
     // The thermostat holding a range (heat/cool), as many do in auto mode.
     range: () => home.set('climate.thermostat', 'heat_cool', { temperature: undefined, target_temp_low: 66, target_temp_high: 74 }),
@@ -705,6 +709,6 @@ export function startDemo(): void {
 declare global {
   interface Window {
     /** Demo mode only: ring the doorbell, or show a label at the top (see demo.ts). */
-    ctDemo?: { ring(): void; caption(title: string, detail?: string): void; door(id?: string, open?: boolean): void; range(): void };
+    ctDemo?: { ring(): void; caption(title: string, detail?: string): void; sky(phase?: string, condition?: string): void; door(id?: string, open?: boolean): void; range(): void };
   }
 }
