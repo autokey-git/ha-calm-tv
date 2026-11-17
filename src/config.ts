@@ -30,6 +30,8 @@ const DeviceSchema = v.object({
   operator: v.optional(EntityId),
   /** Lock: a keypad's battery sensor. */
   keypad: v.optional(EntityId),
+  /** Sensor: what OK opens/closes in the ★ side panel, e.g. the garage door's "cover.left_garage_door". */
+  control: v.optional(EntityId),
 });
 
 /** The screens, in their default order (↓ moves through them). */
@@ -102,13 +104,15 @@ const ConfigSchema = v.object({
   /**
    * The living sky (off unless present): the background follows the time of day from `sun`
    * (default sun.sun) and draws the weather from `weather` (default the Weather screen's entity).
-   * `effects: false` keeps the time of day but draws no rain, snow or fog.
+   * `effects: false` keeps the time of day but draws no rain, snow or fog. `versionsOnly: true` leaves
+   * backgrounds without their own dawn/day/dusk/night versions exactly as they are (no tint or stars).
    */
   sky: v.optional(
     v.object({
       sun: v.optional(EntityId),
       weather: v.optional(EntityId),
       effects: v.optional(v.boolean('should be true or false')),
+      versionsOnly: v.optional(v.boolean('should be true or false')),
     }),
   ),
   /** Calendar entities: `events` fill the Calendar bar; `meals` (optional) gives "Dinner · …" from today's all-day event. */
@@ -128,6 +132,18 @@ const ConfigSchema = v.object({
       position: v.optional(v.picklist(['corner', 'center'], 'should be "corner" or "center"')),
       pause: v.optional(v.boolean()),
       sound: v.optional(v.boolean()),
+    }),
+  ),
+  /**
+   * A small pop-up in the corner when a door opens, even over other apps (it never pauses them):
+   * an open door with the door's name for a few seconds. A door still open after `leftOpen` seconds
+   * (default 10) pops up again with a red "!" and "Left open", until it closes. Off unless doors are listed.
+   */
+  doors: v.optional(
+    v.object({
+      popup: v.optional(v.boolean()),
+      entities: v.optional(v.array(v.object({ name: v.string(), entity: EntityId }))),
+      leftOpen: v.optional(v.pipe(v.number('should be a number of seconds, e.g. 10'), v.minValue(5))),
     }),
   ),
   /**
@@ -202,8 +218,9 @@ const devHaUrl = import.meta.env.DEV ? import.meta.env.VITE_HA_URL ?? '' : '';
 /** Home Assistant's address: set on the TV (Settings or adb), or VITE_HA_URL / the saved one in a browser. */
 function readHaUrl(): string {
   if (native?.getHaUrl) return native.getHaUrl();
-  // The doorbell window over other apps has its own, smaller bridge.
+  // The doorbell window and the ★ side panel over other apps have their own, smaller bridges.
   if (window.CalmTvDoorbell?.getHaUrl) return window.CalmTvDoorbell.getHaUrl();
+  if (window.CalmTvPanel?.getHaUrl) return window.CalmTvPanel.getHaUrl();
 
   try {
     return devHaUrl || localStorage.getItem(HA_URL_KEY) || '';
@@ -280,7 +297,9 @@ export async function loadConfig(): Promise<void> {
   let text = '';
   let source = '';
 
-  const nativeLoad = native?.loadConfig ? () => native!.loadConfig!() : window.CalmTvDoorbell?.loadConfig ? () => window.CalmTvDoorbell!.loadConfig!() : null;
+  const nativeLoad = native?.loadConfig ? () => native!.loadConfig!()
+    : window.CalmTvDoorbell?.loadConfig ? () => window.CalmTvDoorbell!.loadConfig!()
+    : window.CalmTvPanel?.loadConfig ? () => window.CalmTvPanel!.loadConfig!() : null;
 
   if (nativeLoad) {
     let answer;

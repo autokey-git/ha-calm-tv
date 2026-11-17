@@ -31,6 +31,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         rememberDevUrl(intent)
         rememberHaUrl(intent)
+        rememberMa(intent)
         // Creates /sdcard/Android/data/io.github.neocarlos.hacalmtv/files/, where a config file can be pushed with adb.
         getExternalFilesDir(null)
 
@@ -58,7 +59,7 @@ class MainActivity : Activity() {
             webChromeClient = NoPosterChromeClient()
             webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                    assets.shouldInterceptRequest(request.url)
+                    albumArt(request.url) ?: assets.shouldInterceptRequest(request.url)
 
                 // Stay on Calm TV's own page, plus your Home Assistant for its sign-in page.
                 // The native bridge must never be exposed to any other site.
@@ -77,7 +78,7 @@ class MainActivity : Activity() {
     /** Home pressed while Calm TV is already open (or brought back by the Home button service). */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (rememberDevUrl(intent) or rememberHaUrl(intent)) {
+        if (rememberDevUrl(intent) or rememberHaUrl(intent) or rememberMa(intent)) {
             recreate()
             return
         }
@@ -108,6 +109,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         inFront = false
+        volumeKeysToPage = false
         // Stop a video background while another app or the screensaver is in front.
         js("window.dispatchEvent(new Event('ct-pause'))")
     }
@@ -117,6 +119,14 @@ class MainActivity : Activity() {
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_UP) {
                 js("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
+            }
+            return true
+        }
+        // While the Music panel is open, volume keys turn the speakers' group instead of the TV.
+        if (volumeKeysToPage && (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                val dir = if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) "up" else "down"
+                js("window.dispatchEvent(new CustomEvent('ct-volume',{detail:'$dir'}))")
             }
             return true
         }
@@ -156,6 +166,24 @@ class MainActivity : Activity() {
     }
 
     /**
+     * Hands Music Assistant's address and token to the page without typing (a token is too long
+     * for adb's input text), for the Music panel's full queue:
+     *   adb shell am start -n io.github.neocarlos.hacalmtv/.MainActivity --es maToken <token> --es maUrl http://192.168.1.20:8095
+     * maUrl is optional. The token itself is never logged. Returns true if the intent had one.
+     */
+    private fun rememberMa(intent: Intent?): Boolean {
+        if (intent?.hasExtra(KEY_MA_TOKEN) != true) return false
+        val json = org.json.JSONObject()
+            .put("token", intent.getStringExtra(KEY_MA_TOKEN).orEmpty().trim())
+            .put("url", intent.getStringExtra(KEY_MA_URL).orEmpty().trim())
+        Prefs.setMaHandoff(this, json.toString())
+        Log.i(TAG, "Music Assistant token handed to the page")
+        intent.removeExtra(KEY_MA_TOKEN)
+        intent.removeExtra(KEY_MA_URL)
+        return true
+    }
+
+    /**
      * Demo mode (a made-up home; see src/demo.ts) until the app restarts, e.g. for recording:
      *   adb shell am start -n io.github.neocarlos.hacalmtv/.MainActivity --es demo ""
      *   adb shell am start -n io.github.neocarlos.hacalmtv/.MainActivity --es demo "at=2026-11-14T18:30"
@@ -173,6 +201,35 @@ class MainActivity : Activity() {
     }
 
     /** Your Home Assistant (as set up on this TV), for its sign-in page. */
+    /**
+     * Album art handed to the page as if it were its own (/calmtv-art?u=...), so the Music panel
+     * can read the cover's colours for its background; a page can't read the pixels of a picture
+     * from another address. The cover can be on Home Assistant or on Music Assistant's own server,
+     * so any http(s) address is fetched, and only a picture is passed on. Only Calm TV's own page
+     * can ask. (WebView asks on a background thread, so the download doesn't hold up the page.)
+     */
+    private fun albumArt(url: Uri): WebResourceResponse? {
+        if (url.path != "/calmtv-art" || !sameOrigin(url, startUrl)) return null
+        val target = url.getQueryParameter("u")?.let(Uri::parse) ?: return null
+        if (target.scheme != "http" && target.scheme != "https") return WebResourceResponse("text/plain", null, 403, "Forbidden", emptyMap(), null)
+        return try {
+            val conn = java.net.URL(target.toString()).openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 5000
+            conn.readTimeout = 10000
+            val type = conn.contentType?.substringBefore(';')?.trim() ?: ""
+            if (conn.responseCode != 200 || !type.startsWith("image/")) {
+                Log.w(TAG, "Album art: ${conn.responseCode} $type from ${target.host}")
+                conn.disconnect()
+                WebResourceResponse("text/plain", null, 404, "Not Found", emptyMap(), null)
+            } else {
+                WebResourceResponse(type, null, conn.inputStream)
+            }
+        } catch (e: java.io.IOException) {
+            Log.w(TAG, "Album art: ${e.message}")
+            WebResourceResponse("text/plain", null, 404, "Not Found", emptyMap(), null)
+        }
+    }
+
     private fun isHomeAssistant(url: Uri): Boolean {
         val ha = Prefs.haUrl(this).takeIf { it.isNotEmpty() } ?: return false
         return sameOrigin(url, Uri.parse(ha))
@@ -187,6 +244,8 @@ class MainActivity : Activity() {
         private const val KEY_DEV_URL = "devUrl"
         private const val KEY_HA_URL = "haUrl"
         private const val KEY_DEMO = "demo"
+        private const val KEY_MA_TOKEN = "maToken"
+        private const val KEY_MA_URL = "maUrl"
         const val BUNDLED_URL = "http://appassets.androidplatform.net/assets/web/index.html"
 
         /** The page Calm TV loaded (the dev server in debug builds, if set). */
@@ -198,5 +257,9 @@ class MainActivity : Activity() {
         @Volatile
         var inFront = false
             private set
+
+        /** Set by the page (NativeBridge.setVolumeKeys) while the Music panel is open. */
+        @Volatile
+        var volumeKeysToPage = false
     }
 }

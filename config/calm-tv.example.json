@@ -46,6 +46,12 @@
     "camera": "camera.front_door",
     "ringing": "input_boolean.doorbell_ringing"
   },
+  "doors": {
+    "entities": [
+      { "name": "Front door", "entity": "binary_sensor.front_door" },
+      { "name": "Back door", "entity": "binary_sensor.back_door" }
+    ]
+  },
   "music": {
     "players": [
       {
@@ -290,7 +296,8 @@
             {
               "type": "sensor",
               "entity": "binary_sensor.garage_door",
-              "name": "Garage door"
+              "name": "Garage door",
+              "control": "cover.garage_door"
             },
             {
               "type": "sensor",

@@ -17,12 +17,20 @@ interface CalmTvNative {
   showDoorbell?(): boolean;
   /** The same, sized and placed by JSON { size, center, pause } (see DoorbellLook); newer TV apps only. */
   showDoorbellWith?(look: string): boolean;
+  /** A door pop-up in the corner over the current app, JSON { id, name, left, stay }; false if it can't. */
+  showDoor?(json: string): boolean;
+  /** Takes away a door's pop-up that stays ("left open"), by the id it was shown with. */
+  hideDoor?(id: string): void;
+  /** While on, the remote's volume keys go to the page as 'ct-volume' events ("up"/"down") instead of the TV. */
+  setVolumeKeys?(on: boolean): void;
   /** Home Assistant's address saved on the TV, or "". */
   getHaUrl?(): string;
   /** Saves Home Assistant's address; returns the cleaned-up address, or "" if invalid. */
   setHaUrl?(url: string): string;
   /** JSON: { source, text } with calm-tv.json's contents, or { error }. */
   loadConfig?(): string;
+  /** Music Assistant's address and token given with adb, as JSON { url, token }, once; "" if none. */
+  takeMaSetup?(): string;
 }
 
 declare global {

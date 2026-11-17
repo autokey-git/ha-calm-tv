@@ -2,6 +2,7 @@ import { apps, saveDockOrder } from '../apps';
 import type { App } from '../types';
 import type { Section } from './section';
 import { child } from '../dom';
+import { conditionIcon, conditionLabel } from './weather-section';
 
 // Icon-only tiles; the label appears only for the focused app.
 const TW = 150;
@@ -35,7 +36,7 @@ export class AppsSection implements Section {
     s.className = 'section';
     s.id = 'secApps';
     s.innerHTML = `
-      <div class="caption"><p class="clock" id="clock">—</p><p class="cdate" id="cdate">—</p></div>
+      <div class="caption"><div class="clock-row"><p class="clock" id="clock">—</p><p class="cwx" hidden></p></div><p class="cdate" id="cdate">—</p></div>
       <div class="gb" id="dock">
         <div class="gb-mat"><div class="gb-img"></div><div class="gb-veil"></div></div>
         <div class="gb-edge"></div>
@@ -162,6 +163,16 @@ export class AppsSection implements Section {
     const a = apps[i];
 
     if (a) this.onLaunch(a);
+  }
+
+  /** The weather right now beside the clock: icon and temperature; hidden without it. */
+  setWeather(w: { condition: string; temperature: number } | null): void {
+    const el = child(this.el, '.cwx');
+    el.hidden = !w;
+
+    if (!w) return;
+    el.innerHTML = `<span class="cwx-ico">${conditionIcon(w.condition)}</span><span class="cwx-temp">${Math.round(w.temperature)}°</span>`;
+    el.setAttribute('aria-label', conditionLabel(w.condition));
   }
 
   private tick(): void {

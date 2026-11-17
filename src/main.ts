@@ -34,6 +34,12 @@ async function main(): Promise<void> {
   bg?.photos?.forEach((p) => wallpapers.push({ name: p.name, url: haPath(p.url), variants: phaseUrls(p), map: p.map }));
   bg?.videos?.forEach((v) => videos.push({ name: v.name, url: haPath(v.url), thumb: v.thumb ? haPath(v.thumb) : '', variants: phaseUrls(v), map: v.map }));
 
+  if (new URLSearchParams(location.search).has('panel')) {
+    (await import('./side-panel')).startSidePanel();
+
+    return;
+  }
+
   if (new URLSearchParams(location.search).has('doorbell')) {
     startDoorbellOnly();
 

@@ -127,6 +127,13 @@ html:not(.sky-on) .gb-img::after { display: none; }
   margin: 0; font-size: 48px; line-height: 60px; font-weight: 600; letter-spacing: -1.5px;
   white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
 }
+/* The weather right now, beside the clock (above the date). */
+.clock-row { display: flex; align-items: center; gap: 34px; }
+.cwx { margin: 0; display: flex; align-items: center; gap: 12px; color: var(--ink); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.28); white-space: nowrap; }
+.cwx[hidden] { display: none; }
+.cwx-ico { width: 40px; height: 40px; display: flex; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)); }
+.cwx-ico svg { width: 100%; height: 100%; }
+.cwx-temp { font-size: 40px; font-weight: 600; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
 .cdate {
   margin: 4px 0 0; font-size: 24px; font-weight: 500; letter-spacing: -0.4px;
   color: var(--ink-dim); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.26);
@@ -247,6 +254,7 @@ html:not(.sky-on) .gb-img::after { display: none; }
 .detail-close { width: 64px; height: 64px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.06); color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; transition: background 0.18s ease, box-shadow 0.18s ease; }
 .detail-close svg { width: 28px; height: 28px; }
 .detail-close.focus { background: var(--plate); box-shadow: var(--ring), var(--plate-edge); }
+.detail-hint { align-self: center; font-size: 20px; color: var(--ink-faint); white-space: nowrap; }
 .detail-cols { display: flex; gap: 44px; align-items: flex-start; }
 .dcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .dcol-title { font-size: 22px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 20px; padding-left: 4px; }
@@ -255,9 +263,16 @@ html:not(.sky-on) .gb-img::after { display: none; }
   position: relative; display: flex; align-items: center; gap: 20px; width: 100%; padding: 20px 22px;
   border-radius: 22px; cursor: pointer; text-align: left; color: var(--ink); font-family: inherit;
   background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: background 0.18s ease, box-shadow 0.18s ease;
 }
-.drow.focus { background: rgba(255, 255, 255, 0.12); box-shadow: var(--ring), var(--plate-edge); }
+/* The focus highlight is its own layer that only fades (like the dock's plate), so moving focus
+   never repaints the row or re-blurs the frosted panel behind it. That repaint was the lag. */
+.drow::before {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  background: rgba(255, 255, 255, 0.12); box-shadow: var(--ring), var(--plate-edge);
+  opacity: 0; transition: opacity 0.12s ease; will-change: opacity;
+}
+.drow > * { position: relative; }
+.drow.focus::before { opacity: 1; }
 .dicon { width: 56px; height: 56px; border-radius: 15px; background: rgba(255, 255, 255, 0.06); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--ink); }
 .dicon svg { width: 30px; height: 30px; }
 .dmeta { min-width: 0; flex: 1 1 auto; }
@@ -417,6 +432,9 @@ html.dbell-only .dbell { --u: 1vw; position: fixed; inset: 0; width: auto; right
 .setup-text { margin-top: 16px; font-size: 26px; color: var(--ink-dim); }
 .setup-input { margin-top: 40px; width: 100%; box-sizing: border-box; padding: 22px 28px; border-radius: 20px; border: 2px solid rgba(255, 255, 255, 0.5); background: rgba(255, 255, 255, 0.08); color: var(--ink); font: 600 34px 'Manrope', system-ui, sans-serif; outline: none; }
 .setup-input:focus { border-color: #fff; }
+.setup-label { margin-top: 30px; font-size: 22px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-faint); }
+.setup-label span { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.ma-setup .setup-input { margin-top: 12px; }
 .setup-msg { min-height: 34px; margin-top: 18px; font-size: 24px; color: var(--warm); }
 .setup-hint { margin-top: 8px; font-size: 21px; color: var(--ink-faint); }
 
@@ -490,43 +508,80 @@ html.instant .section { transition: none !important; }
 /* ---------- Music panel (sections/music-panel.ts) ---------- */
 .music { position: absolute; inset: 0; display: none; z-index: 45; overflow: hidden; background: #06080a; }
 .music.open { display: block; }
-.music-bg { position: absolute; inset: -60px; background: #0b0e11 center / cover no-repeat; filter: blur(60px) saturate(1.2); opacity: 0.55; transition: background-image 0.4s ease; }
-.music-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 6, 8, 0.45), rgba(4, 6, 8, 0.7)); }
+/* The background takes its colour from the album art (--art-tint, set in music-panel.ts): a soft
+   glow that spreads from the art and fades out by the far corner, so the glass sheets still stand
+   out against it; it fades over when the song changes. */
+@property --art-tint-c { syntax: '<color>'; inherits: true; initial-value: rgb(40, 46, 52); }
+.music { --art-tint: 40, 46, 52; --art-tint-c: rgb(var(--art-tint)); transition: --art-tint-c 0.8s ease; }
+.music-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 110% 130% at 21% 30%, color-mix(in srgb, var(--art-tint-c) 95%, transparent), color-mix(in srgb, var(--art-tint-c) 55%, transparent) 55%, color-mix(in srgb, var(--art-tint-c) 12%, transparent) 95%), #06080a; }
+.music-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 6, 8, 0.1), rgba(4, 6, 8, 0.45)); }
 .music-body { position: absolute; inset: 96px 110px 110px; display: flex; gap: 100px; }
 .music-now { flex: 0 0 600px; width: 600px; min-width: 0; display: flex; flex-direction: column; }
-.music-art { flex: 0 0 auto; width: 420px; height: 420px; border-radius: 28px; overflow: hidden; background: rgba(255, 255, 255, 0.06); box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.8); }
+/* Music Assistant's mark tucked into the top-left corner, clear of the art; it takes no space. */
+.music-logo { position: absolute; left: 36px; top: 36px; width: 72px; height: 72px; color: var(--ink); opacity: 0.5; pointer-events: none; transition: opacity 0.25s ease; }
+.music-logo svg { width: 100%; height: 100%; display: block; }
+.music-logo svg path { fill: currentColor; }
+.music.grouping .music-logo { opacity: 0.12; }
+.music-art { flex: 0 0 auto; align-self: center; width: 420px; height: 420px; border-radius: 28px; overflow: hidden; background: rgba(255, 255, 255, 0.06); box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.8); }
 .music-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .music-art-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
 .music-art-empty svg { width: 160px; height: 160px; }
-.music-title { margin-top: 36px; font-size: 44px; font-weight: 700; letter-spacing: -0.8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.music-title { margin-top: 26px; font-size: 44px; font-weight: 700; letter-spacing: -0.8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .music-artist { margin-top: 6px; font-size: 28px; font-weight: 500; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.music-progress { margin-top: 28px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+.music-progress { margin-top: 20px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
 .music-progress i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 3px; transition: width 1s linear; }
-.music-times { display: flex; justify-content: space-between; margin-top: 10px; font-size: 20px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
-/* Controls and library sit in frosted bars like the dock: one sheet of glass, the focused item lit. */
-.music-controls, .music-cats { -webkit-backdrop-filter: blur(16px) saturate(1.05); backdrop-filter: blur(16px) saturate(1.05); background: var(--veil); box-shadow: var(--plate-edge); }
-html.glass-tint .music-controls, html.glass-tint .music-cats { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
-.music-controls { margin-top: 18px; display: flex; align-items: center; justify-content: space-between; height: 104px; padding: 0 12px; border-radius: 40px; }
+.music-times { display: flex; justify-content: space-between; margin-top: 10px; margin-bottom: 18px; font-size: 20px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+/* Controls and library sit in frosted bars like the dock: one sheet of glass, the focused item lit.
+   The glass dims what's behind it as the dock's does (brightness 0.72), so a tall sheet stays
+   evenly dark to its bottom edge. */
+.music-controls, .music-cats, .music-speakers { -webkit-backdrop-filter: blur(16px) saturate(1.05) brightness(0.72); backdrop-filter: blur(16px) saturate(1.05) brightness(0.72); background: var(--veil); box-shadow: var(--plate-edge); }
+html.glass-tint .music-controls, html.glass-tint .music-cats, html.glass-tint .music-speakers { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
+.music-controls { margin-top: auto; display: flex; align-items: center; justify-content: space-between; height: 104px; padding: 0 12px; border-radius: 40px; }
 .music-controls-2 { margin-top: 12px; height: 88px; gap: 8px; }
 .music-controls-2 .mbtn { width: 72px; height: 72px; border-radius: 24px; }
 .music-controls-2 .mbtn svg { width: 36px; height: 36px; }
 .music-volbar { flex: 1 1 0; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
 .music-volbar i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 4px; transition: width 0.2s ease; }
 .mbtn.on { color: var(--warm); opacity: 1; }
-.mspk { background: rgba(255, 255, 255, 0.06); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--plate-edge); }
-html.glass-tint .mspk { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.45); }
 .mbtn { width: 80px; height: 80px; flex: 0 0 auto; border-radius: 26px; border: 0; background: transparent; color: var(--ink); opacity: 0.86; display: flex; align-items: center; justify-content: center; transition: background 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease; }
 .mbtn svg { width: 40px; height: 40px; }
 .mbtn.big svg { width: 52px; height: 52px; }
 .mbtn.focus { opacity: 1; background: var(--plate); box-shadow: var(--plate-edge); }
 .music-vol { min-width: 58px; text-align: center; font-size: 22px; font-weight: 600; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.music-side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+/* The right column starts higher, level with the logo, so the speakers' sheet lines up with the top of the art. */
+.music-side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; margin-top: -60px; }
+/* The Speakers heading with its note beside it, on one line. */
+.music-spk-top { display: flex; align-items: baseline; gap: 22px; margin-bottom: 30px; min-width: 0; }
+.music-spk-top .music-h { margin-bottom: 0; flex: 0 0 auto; }
+.music-spk-top .music-note { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .music-h { font-size: 22px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 16px 4px; }
 .music-lib-h { margin-top: 36px; }
-.music-speakers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.mspk { display: flex; align-items: center; gap: 18px; padding: 18px 24px; border-radius: 22px; border: 1px solid transparent; transition: background 0.18s ease, box-shadow 0.18s ease; }
-.mspk-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); flex: 0 0 auto; }
-.mspk.playing .mspk-dot { background: var(--warm); box-shadow: 0 0 12px var(--warm); }
+/* Speakers share one sheet of glass like the library; the focused one is lit like a dock tile. */
+.music-speakers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 12px; border-radius: 40px; }
+.mspk { display: flex; align-items: center; gap: 18px; height: 88px; padding: 0 24px; border-radius: 28px; color: var(--ink-dim); transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease; }
+.mspk .mspk-name { transition: color 0.18s ease; }
+/* The dot takes the same 30px as the grouping checkmark, so names don't shift when grouping starts. */
+.mspk-dot { width: 30px; height: 30px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+/* Speakers that are playing show the cover as a small square edged in its colour, with bars that
+   move while it plays; ones playing along show their leader's square with a link. Idle ones are grey. */
+.mspk .mspk-name { color: rgba(255, 255, 255, 0.5); }
+.mspk .mspk-status { color: var(--ink-faint); }
+.mspk.live .mspk-name { color: #fff; }
+.mspk.live .mspk-status { color: rgba(255, 255, 255, 0.85); }
+.mspk.wide .mspk-name, .mspk.top .mspk-name { color: var(--ink); }
+.mspk.wide .mspk-status, .mspk.top .mspk-status { color: var(--ink-dim); }
+.mspk-cover { position: relative; width: 44px; height: 44px; margin: 0 -7px; flex: 0 0 auto; border-radius: 10px; background: rgba(255, 255, 255, 0.12); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6), 0 4px 14px rgba(0, 0, 0, 0.5); }
+.mspk-cover.still { background: rgba(255, 255, 255, 0.06); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3); }
+.mspk-cover.still .mspk-over { background: none; color: rgba(255, 255, 255, 0.6); }
+.mspk-cover img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; display: block; }
+.mspk-over { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: inherit; background: rgba(0, 0, 0, 0.35); color: #fff; }
+.mspk-over svg { width: 24px; height: 24px; }
+.mspk-bars { display: flex; gap: 3px; align-items: center; height: 22px; }
+.mspk-bars i { width: 4px; height: 12px; border-radius: 2px; background: #fff; }
+.mspk-cover.moving .mspk-bars i { animation: mspk-bars 0.9s ease-in-out infinite alternate; }
+.mspk-cover.moving .mspk-bars i:nth-child(2) { animation-delay: -0.3s; }
+.mspk-cover.moving .mspk-bars i:nth-child(3) { animation-delay: -0.6s; }
+@keyframes mspk-bars { from { height: 5px; } to { height: 22px; } }
 .mspk-text { min-width: 0; flex: 1 1 0; overflow: hidden; }
 /* Cards keep their size: a long name or status stays on one line, and scrolls on the focused card. */
 .mspk-name span, .mspk-status span { display: inline-block; white-space: nowrap; }
@@ -535,24 +590,58 @@ html.glass-tint .mspk { -webkit-backdrop-filter: none; backdrop-filter: none; ba
 .mspk-ico { width: 34px; height: 34px; flex: 0 0 auto; display: flex; color: var(--ink); }
 .mspk-ico svg { width: 34px; height: 34px; }
 .mspk.everywhere { grid-column: span 1; }
+.mspk.wide { grid-column: 1 / -1; justify-content: center; }
+.mspk.wide .mspk-text { flex: 0 1 auto; }
+.mspk.wide, .mspk.top { height: 80px; }
+.music-note { margin: -8px 0 4px 4px; font-size: 19px; color: var(--ink-faint); }
 .mspk-name { font-size: 26px; font-weight: 600; white-space: nowrap; overflow: hidden; }
 .mspk-status { font-size: 19px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; margin-top: 2px; }
-.music-group { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 20px; color: var(--ink-dim); }
+.music-group { display: flex; align-items: center; gap: 10px; margin-top: 8px; height: 26px; font-size: 20px; color: var(--ink-dim); }
 .music-group svg { width: 24px; height: 24px; flex: 0 0 auto; }
-.mspk-check { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
-.mspk-check svg { width: 22px; height: 22px; }
-.mspk-check.on { background: var(--warm); border-color: var(--warm); color: #111; }
-.mspk.grouped:not(.focus) { background: rgba(255, 255, 255, 0.1); }
-.music.grouping .music-cats, .music.grouping .music-lib-h { opacity: 0.35; }
-.mspk.active:not(.focus) { background: rgba(255, 255, 255, 0.13); border-color: rgba(255, 255, 255, 0.2); }
-.mspk.focus { background: var(--plate); box-shadow: var(--ring), var(--plate-edge); }
-.music-home { display: flex; flex-direction: column; min-height: 0; }
+.mspk-slider { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.mspk-bar { flex: 1 1 0; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+.mspk-bar i { display: block; height: 100%; background: var(--ink); border-radius: 4px; transition: width 0.2s ease; }
+.mspk-pct { min-width: 58px; text-align: right; font-size: 20px; font-weight: 600; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.mspk.sliding .mspk-name { font-size: 22px; }
+.music.sliding .mspk:not(.sliding), .music.sliding .music-cats, .music.sliding .music-lib-h { opacity: 0.35; }
+.mspk { transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, opacity 0.25s ease; }
+.mspk.active:not(.focus) { background: rgba(255, 255, 255, 0.05); }
+.mspk.focus { background: var(--plate); box-shadow: var(--plate-edge); }
+.mspk.mate:not(.focus) { background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22); }
+/* Grouping is its own little menu: everything but the speakers fades back. */
+.music-now, .music-lib-h, .music-cats { transition: opacity 0.25s ease; }
+.music.grouping .music-now, .music.grouping .music-cats, .music.grouping .music-lib-h { opacity: 0.12; }
+/* The library sits at the bottom, level with the controls (top and bottom); the speakers get the room above. */
+.music-home { display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; }
+/* The speakers' sheet fills down to the progress bar's height and scrolls when there are many. */
+.music-home .music-speakers { flex: 1 1 0; min-height: 0; overflow-y: auto; align-content: start; scroll-padding: 12px; }
+/* A thin, faint track on the right, only when there are more speakers than fit. */
+.music-home .music-speakers::-webkit-scrollbar { display: none; }
+.music-home .music-speakers { scrollbar-width: none; }
+.music-spk-wrap { position: relative; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.music-spk-track { position: absolute; right: 12px; top: 36px; bottom: 36px; width: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+.music-spk-track.on { opacity: 1; }
+.music-spk-wrap.more .music-speakers { padding-right: 32px; }
+.music-spk-track i { position: absolute; left: 0; right: 0; border-radius: 4px; background: rgba(255, 255, 255, 0.4); transition: top 0.2s ease; }
+.music-home .music-lib-h { margin-top: auto; padding-top: 20px; }
 .music-browse { display: none; flex-direction: column; min-height: 0; flex: 1 1 0; }
 .music.browsing .music-home, .music.queue-open .music-home { display: none; }
 .music-queue { display: none; }
-.music.queue-open:not(.browsing) .music-queue { display: block; }
+.music.queue-open:not(.browsing) .music-queue { display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; }
+/* The whole queue (with Music Assistant connected): one sheet of glass that scrolls, like the library. */
+.mq-list { flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 40px; background: var(--veil); box-shadow: var(--plate-edge); -webkit-backdrop-filter: blur(16px) saturate(1.05) brightness(0.72); backdrop-filter: blur(16px) saturate(1.05) brightness(0.72); }
+html.glass-tint .mq-list { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 14, 18, 0.5); }
+.mql { flex: 0 0 auto; display: flex; align-items: center; gap: 22px; height: 88px; padding: 0 22px 0 12px; border-radius: 28px; transition: background 0.18s ease, box-shadow 0.18s ease; }
+.mql.focus { background: var(--plate); box-shadow: var(--plate-edge); }
+.mql-art { position: relative; width: 64px; height: 64px; flex: 0 0 auto; border-radius: 12px; overflow: hidden; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
+.mql-art svg { width: 30px; height: 30px; }
+.mql-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mql-text { flex: 1 1 0; min-width: 0; }
+.mql-name { font-size: 25px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mql-sub { margin-top: 2px; font-size: 19px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-tip { color: var(--ink-faint); }
 .mq-h { font-size: 20px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); margin: 28px 0 12px 4px; }
-.mq-row { display: flex; align-items: center; gap: 28px; padding: 18px; border-radius: 30px; background: var(--veil); box-shadow: var(--plate-edge); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.mq-row { display: flex; align-items: center; gap: 28px; padding: 18px; border-radius: 30px; background: var(--veil); box-shadow: var(--plate-edge); -webkit-backdrop-filter: blur(16px) saturate(1.05) brightness(0.72); backdrop-filter: blur(16px) saturate(1.05) brightness(0.72); }
 .mq-art { width: 132px; height: 132px; flex: 0 0 auto; border-radius: 18px; overflow: hidden; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
 .mq-art img { width: 100%; height: 100%; object-fit: cover; }
 .mq-art svg { width: 56px; height: 56px; }
@@ -562,9 +651,13 @@ html.glass-tint .mspk { -webkit-backdrop-filter: none; backdrop-filter: none; ba
 .mq-time { font-size: 22px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 .mq-facts { margin: 22px 0 0 4px; font-size: 21px; color: var(--ink-dim); }
 .music.browsing .music-browse { display: flex; }
-.music-cats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 12px; border-radius: 40px; }
-.mcat { display: flex; align-items: center; gap: 18px; height: 88px; padding: 0 22px; border-radius: 28px; font-size: 25px; font-weight: 600; color: var(--ink-dim); white-space: nowrap; min-width: 0; transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease; }
-.mcat svg { width: 52px; height: 52px; flex: 0 0 auto; color: var(--ink); opacity: 0.86; }
+.music-cats { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 6px; height: 204px; box-sizing: border-box; padding: 11px 12px; border-radius: 40px; }
+/* While the library is loading or can't be reached, its message sits in the middle of the same-sized sheet. */
+.music-cats .music-lib-msg { width: 100%; text-align: center; }
+/* Four across, two rows: the same height as the controls; a short last row sits in the middle. */
+.music-cats .mcat { flex: 0 0 calc((100% - 18px) / 4); }
+.mcat { display: flex; align-items: center; gap: 14px; height: 88px; padding: 0 18px; border-radius: 28px; font-size: 25px; font-weight: 600; color: var(--ink-dim); white-space: nowrap; min-width: 0; transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease; }
+.mcat svg { width: 46px; height: 46px; flex: 0 0 auto; color: var(--ink); opacity: 0.86; }
 .mcat span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .mcat.focus { background: var(--plate); box-shadow: var(--plate-edge); color: var(--ink); }
 .mcat.focus svg { opacity: 1; }
@@ -585,4 +678,85 @@ html.glass-tint .mspk { -webkit-backdrop-filter: none; backdrop-filter: none; ba
 .mcard.focus .mcard-name { color: var(--ink); }
 .mcard.started .mcard-name::before { content: '▶ '; color: var(--warm); }
 .music-lib-msg { font-size: 22px; color: var(--ink-faint); padding: 8px 4px; }
-.music-hint { position: absolute; right: 110px; bottom: 44px; font-size: 20px; color: var(--ink-faint); }
+.music-hint { position: absolute; right: 110px; bottom: 42px; font-size: 20px; color: var(--ink-faint); }
+
+/* Door pop-ups (doors.ts): small glass cards in the top-right corner, newest at the bottom. */
+.door-pops { position: absolute; right: 56px; top: 56px; z-index: 70; display: flex; flex-direction: column; align-items: flex-end; gap: 14px; pointer-events: none; }
+.door-pop { display: flex; align-items: center; gap: 18px; padding: 16px 30px 16px 18px; border-radius: 26px; background: rgba(16, 18, 20, 0.82); border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.8); color: #fff; opacity: 0; transform: translateY(-14px); transition: opacity 0.35s ease, transform 0.35s ease; }
+.door-pop.in { opacity: 1; transform: none; }
+.door-pop-ico { position: relative; width: 56px; height: 56px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: rgba(255, 255, 255, 0.1); }
+.door-pop-ico svg { width: 36px; height: 36px; }
+.door-pop-ico b { position: absolute; right: -7px; top: -7px; width: 26px; height: 26px; border-radius: 50%; background: #e5484d; color: #fff; font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px rgba(16, 18, 20, 0.9); }
+.door-pop-text { display: flex; flex-direction: column; }
+.door-pop-name { font-size: 28px; font-weight: 600; white-space: nowrap; }
+.door-pop-sub { font-size: 20px; font-weight: 600; color: #ff8a8d; margin-top: 2px; }
+
+/* ★ side panel (index.html?panel), shown by the TV app on the right over whatever is playing. The
+   window is transparent; the panel is laid out 684 wide and zoomed to fit (see side-panel.ts). */
+html.sp-only, html.sp-only body { background: transparent; overflow: hidden; }
+html.sp-only body > :not(.sp) { display: none; }
+.sp { position: fixed; left: 32px; top: 32px; width: 620px; border-radius: 40px; background: rgba(18, 20, 22, 0.86); box-shadow: 0 14px 32px -12px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.12); padding: 34px 34px 26px; display: flex; flex-direction: column; gap: 12px; color: var(--ink); animation: sp-in 0.25s ease; }
+@keyframes sp-in { from { opacity: 0; transform: translateX(40px); } }
+.sp-top { display: flex; justify-content: space-between; align-items: baseline; padding: 0 8px 6px; }
+.sp-top b { font-size: 22px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+.sp-now { font-size: 22px; color: var(--ink-dim); display: flex; align-items: center; gap: 6px; }
+.sp-wx { display: inline-flex; align-items: center; gap: 6px; }
+.sp-wx svg { width: 28px; height: 28px; }
+.sp-list { flex: 1 1 0; min-height: 0; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 12px; padding: 4px; margin: -4px; scroll-padding: 40px 4px 12px; }
+.sp-list::-webkit-scrollbar { display: none; }
+.sp-h { font-size: 18px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; margin: 8px 8px 0; }
+.sp-grid { display: grid; grid-template-columns: repeat(var(--per), 1fr); gap: 10px; }
+.sp-therm { gap: 12px; }
+.sp-item { border-radius: 22px; background: rgba(255, 255, 255, 0.06); transition: background 0.15s, transform 0.15s; min-width: 0; }
+.sp-item.focus { background: var(--plate); box-shadow: var(--plate-edge); transform: scale(1.02); }
+.sp-item .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-climate { border-radius: 28px; padding: 20px 22px; }
+.sp-climate .n { font-size: 20px; color: var(--ink-dim); }
+.sp-climate .t { font-size: 58px; font-weight: 600; letter-spacing: -2px; line-height: 1.1; }
+.sp-climate .s { font-size: 19px; color: var(--ink-dim); }
+.sp-climate .adj { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.sp-climate .adj i { width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, 0.14); display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 26px; font-weight: 600; }
+.sp-climate .adj b { font-size: 24px; font-weight: 700; }
+.sp-climate.warm .adj b { color: #e9a56a; }
+.sp-climate.cool .adj b { color: #8ac4ff; }
+.sp-climate.adjusting { box-shadow: var(--plate-edge), 0 0 0 3px rgba(255, 255, 255, 0.85); }
+.sp-climate.adjusting .adj i { background: rgba(255, 255, 255, 0.32); }
+.sp-door, .sp-sensor { padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+.sp-door svg, .sp-sensor svg { width: 30px; height: 30px; flex: 0 0 auto; }
+.sp-door > div, .sp-sensor > div { min-width: 0; }
+.sp-door .n, .sp-sensor .n { font-size: 19px; }
+.sp-door .s, .sp-sensor .s { font-size: 16px; color: var(--ink-faint); }
+.sp-item.open .s, .sp-item.open svg { color: #ff8a8d; }
+.sp-music { border-radius: 26px; padding: 14px; display: flex; align-items: center; gap: 16px; }
+.sp-music img, .sp-music .art { width: 76px; height: 76px; border-radius: 14px; object-fit: cover; flex: 0 0 auto; }
+.sp-music .art { display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.08); }
+.sp-music .art svg { width: 36px; height: 36px; color: var(--ink-dim); }
+.sp-music .txt { min-width: 0; }
+.sp-music .n { font-size: 21px; }
+.sp-music .s { font-size: 17px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-music .pp { margin-left: auto; width: 54px; height: 54px; border-radius: 50%; background: rgba(255, 255, 255, 0.14); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.sp-music .pp svg { width: 26px; height: 26px; }
+.sp-camera { height: 120px; position: relative; overflow: hidden; background: rgba(255, 255, 255, 0.06); }
+.sp-camera img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sp-camera img:not([src]) { display: none; }
+.sp-camera span { position: absolute; left: 12px; bottom: 10px; font-size: 17px; font-weight: 600; text-shadow: 0 1px 4px #000; }
+.sp-camera.focus { box-shadow: var(--plate-edge), 0 0 0 3px rgba(255, 255, 255, 0.85); }
+.sp-big { position: absolute; inset: 0; border-radius: 40px; background: #000; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+.sp-big[hidden] { display: none; }
+.sp-big img { width: 100%; height: auto; max-height: 100%; object-fit: contain; }
+.sp-big-name { position: absolute; left: 30px; top: 26px; font-size: 22px; font-weight: 600; text-shadow: 0 1px 4px #000; }
+.sp.cam-open .sp-hint { position: relative; z-index: 1; }
+.sp-empty { font-size: 20px; color: var(--ink-dim); padding: 20px 8px; }
+.sp-hint { text-align: center; font-size: 18px; color: var(--ink-faint); }
+.sp-climate .adj.rng { gap: 10px; }
+.sp-climate .adj .pt { display: flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 14px; font-size: 24px; font-weight: 700; }
+.sp-climate .adj .pt small { font-size: 15px; font-weight: 600; color: var(--ink-dim); }
+.sp-climate .adj .pt.lo { color: #e9a56a; }
+.sp-climate .adj .pt.hi { color: #8ac4ff; }
+.sp-climate .adj .pt.pick { background: rgba(255, 255, 255, 0.22); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85); }
+.sp-climate .adj b.off { color: var(--ink-dim); }
+.sp-sensor.asking { box-shadow: var(--plate-edge), 0 0 0 3px #e9a56a; }
+.sp-sensor.asking .s { color: #e9a56a; }
+.sp-climate .adj .pt.edit { gap: 8px; }
+.sp-climate .adj .pt i { width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); display: inline-flex; align-items: center; justify-content: center; align-self: center; font-style: normal; font-size: 20px; color: var(--ink); }
+.sp-climate .adj .pt.edit { gap: 12px; }

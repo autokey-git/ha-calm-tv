@@ -169,7 +169,12 @@ class Sky {
   private tint!: HTMLElement;
   private glow!: HTMLElement;
   private fx: SkyFx | null = null;
-  private scene: { name: string; native: Phase; horizon: number; map?: SceneMap } = { name: '', native: 'day', horizon: 0.5 };
+  private scene: { name: string; native: Phase; horizon: number; map?: SceneMap; versioned: boolean } = {
+    name: '',
+    native: 'day',
+    horizon: 0.5,
+    versioned: false,
+  };
   private state: SkyState = { weights: { dawn: 0, day: 1, dusk: 0, night: 0 }, weather: CALM, condition: 'sunny' };
   private preview: { phase?: Phase; condition?: string } = {};
   private raf = 0;
@@ -223,11 +228,14 @@ class Sky {
     this.update();
   }
 
-  /** The background now showing: its name decides which time of day it already is. */
-  setScene(name: string, native: Phase = nativePhase(name), map?: SceneMap): void {
+  /**
+   * The background now showing: its name decides which time of day it already is. `versioned` says
+   * it has its own dawn/day/dusk/night versions (with `versionsOnly`, only those follow the time of day).
+   */
+  setScene(name: string, native: Phase = nativePhase(name), map?: SceneMap, versioned = false): void {
     const m = map ?? MAPS[name];
     const changed = name !== this.scene.name || m !== this.scene.map;
-    this.scene = { name, native, horizon: HORIZONS[name] ?? 0.5, map: m };
+    this.scene = { name, native, horizon: HORIZONS[name] ?? 0.5, map: m, versioned };
 
     if (changed) this.fx?.setMap(m, this.scene.horizon);
     this.update();
@@ -309,7 +317,10 @@ class Sky {
     const native = this.scene.native;
     // A background already made for a time of day isn't graded toward it again. One made at dawn or
     // dusk can still darken into night, but no tint turns a sunset into midday, so it stays as it is.
-    const grade = (p: Phase): Phase => (native === 'day' ? p : native !== 'night' && p === 'night' ? 'night' : 'day');
+    // With versionsOnly, a background without its own versions is left exactly as it is.
+    const untouched = settings.config.sky?.versionsOnly === true && !this.scene.versioned;
+    const grade = (p: Phase): Phase =>
+      untouched ? 'day' : native === 'day' ? p : native !== 'night' && p === 'night' ? 'night' : 'day';
     let tint = [0, 0, 0];
     let glow = [0, 0, 0, 0];
 
@@ -343,7 +354,7 @@ class Sky {
 
     // Heavier cloud is darker underneath.
     cloud = cloud.map((c) => c * (1 - weather.clouds * 0.25)) as Rgb;
-    this.fx?.set({ ...weather, stars: this.starsShowing, night: weights.night, light, cloud });
+    this.fx?.set({ ...weather, stars: untouched ? 0 : this.starsShowing, night: weights.night, light, cloud });
     this.run();
   }
 

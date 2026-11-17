@@ -20,6 +20,7 @@ import { applyStates, WEATHER } from './home-data';
 import { conditionLabel } from './sections/weather-section';
 import { MusicPanel } from './sections/music-panel';
 import { DoorbellWindow, doorbellEnabled, doorbellLook, doorbellRinging } from './doorbell';
+import { watchDoors } from './doors';
 import { screenOrder, type ScreenName } from './config';
 import { sky } from './sky';
 
@@ -78,6 +79,7 @@ export class CalmTv {
     );
     this.detail = new ZoneDetail(qs('#stage'), () => this.home.refresh());
     this.doorbell = new DoorbellWindow(qs('#stage'), 'Back to dismiss');
+    watchDoors(qs('#stage'));
     this.home = new SmartHomeSection(at('smarthome'), (z) => this.detail.openZone(z), () => ha.signIn());
 
     // Cards come and go as the calendar loads: keep focus valid while it's on screen. (A `let`, as
@@ -125,6 +127,7 @@ export class CalmTv {
       const temperature = w ? attributes(w, WeatherAttributes).temperature : undefined;
       this.home.setOutside(temperature === undefined || !w ? {} : { temp: temperature, condition: conditionLabel(w.state) });
       weather?.setCurrent(temperature === undefined || !w ? null : { condition: w.state, temperature });
+      this.appsSection.setWeather(temperature === undefined || !w ? null : { condition: w.state, temperature });
       this.detail.refresh();
     };
 
@@ -201,12 +204,17 @@ export class CalmTv {
     this.hideHint();
   }
 
-  private moveH(d: number): void {
+  private moveH(d: number, held = false): void {
     const s = this.sections[this.secIndex];
     const n = s.count();
 
     if (n <= 0) return;
-    this.cols[this.secIndex] = Math.max(0, Math.min(this.cols[this.secIndex] + d, n - 1));
+    const next = this.cols[this.secIndex] + d;
+
+    // The dock wraps around: Left on the first tile goes to the last, and Right on the last to the
+    // first. Not while the button is held, so holding it stops at the end instead of circling.
+    if (s === this.appsSection && !held && (next < 0 || next >= n)) this.cols[this.secIndex] = (next + n) % n;
+    else this.cols[this.secIndex] = Math.max(0, Math.min(next, n - 1));
     s.focus(this.cols[this.secIndex]);
     this.hideHint();
   }
@@ -313,7 +321,7 @@ export class CalmTv {
     // The version for this time of day, if the clip has them (see sky.ts).
     const pick = sky.pick(clip.name, clip.url, clip.variants);
     this.videoPick = pick.url;
-    sky.setScene(clip.name, pick.native, clip.map);
+    sky.setScene(clip.name, pick.native, clip.map, !!clip.variants);
 
     try {
       // Clips on another server (Home Assistant's www folder) can't be read into memory (CORS),
@@ -374,7 +382,7 @@ export class CalmTv {
   private photoUrl(n: number): string {
     const w = wallpapers[n];
     const pick = sky.pick(w.name, w.url, w.variants);
-    sky.setScene(w.name, pick.native, w.map);
+    sky.setScene(w.name, pick.native, w.map, !!w.variants);
 
     return pick.url;
   }
@@ -485,8 +493,8 @@ export class CalmTv {
       switch (k) {
         case 'ArrowUp': e.preventDefault(); this.moveV(-1); break;
         case 'ArrowDown': e.preventDefault(); this.moveV(1); break;
-        case 'ArrowLeft': e.preventDefault(); this.moveH(-1); break;
-        case 'ArrowRight': e.preventDefault(); this.moveH(1); break;
+        case 'ArrowLeft': e.preventDefault(); this.moveH(-1, e.repeat); break;
+        case 'ArrowRight': e.preventDefault(); this.moveH(1, e.repeat); break;
         case 'Enter':
         case ' ': e.preventDefault(); this.activate(); break;
         case 'w':

@@ -41,6 +41,9 @@ const CONDITIONS = new Map<string, readonly [Icon, string]>([
 const iconOf = (c?: string): Icon => CONDITIONS.get(c ?? '')?.[0] ?? 'cloud';
 export const conditionLabel = (c?: string): string => CONDITIONS.get(c ?? '')?.[1] ?? (c ? c[0].toUpperCase() + c.slice(1) : '');
 
+/** A condition's icon (the moon for a clear night), for the weather next to the clock. */
+export const conditionIcon = (c?: string): string => (c === 'clear-night' ? moon : wi[iconOf(c)]);
+
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const hourLabel = (hour: number) => `${hour % 12 || 12}${hour < 12 ? 'AM' : 'PM'}`;

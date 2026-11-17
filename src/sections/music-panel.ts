@@ -1,6 +1,9 @@
 import { ha, type ServiceData } from '../ha';
 import { haPath, settings } from '../config';
 import { child } from '../dom';
+import { icon } from '../icons';
+import { ma, maConfigured, type MaQueueItem } from '../music-assistant';
+import { native } from '../native';
 
 // The Music panel: Music Assistant (or any media players) through Home Assistant. Opened from the
 // dock's Music tile. Left: what the chosen speaker is playing, with its controls. Right: the
@@ -21,27 +24,125 @@ const ICON = {
   shuffle: wrap('<path d="M16.5 4.5 20 8l-3.5 3.5V9.2h-1.3c-1.2 0-2 .5-2.8 1.6l-4.3 6.1c-1.1 1.6-2.5 2.6-4.6 2.6H3v-2h.5c1.3 0 2.1-.5 2.9-1.7l4.3-6.1c1.1-1.5 2.5-2.5 4.5-2.5h1.3zM3 6.5h.5c2 0 3.4.9 4.4 2.3l.6.8-1.2 1.7-.9-1.3C5.6 8.9 4.8 8.5 3.5 8.5H3zm10.7 8.2 1.2-1.7c.7.9 1.4 1.3 2.3 1.4h.3v-2.3L21 15.5 17.5 19v-2.3h-.4c-1.5-.1-2.5-.8-3.4-2z"/>'),
   queue: wrap('<path d="M3 5.5h13v2H3zM3 10.5h13v2H3zM3 15.5h8v2H3zM14 14.6v5.8a.5.5 0 0 0 .76.43l4.6-2.9a.5.5 0 0 0 0-.86l-4.6-2.9a.5.5 0 0 0-.76.43z"/>'),
   everywhere: wrap('<path d="M2 9.5A1.5 1.5 0 0 1 3.5 8h3A1.5 1.5 0 0 1 8 9.5v9A1.5 1.5 0 0 1 6.5 20h-3A1.5 1.5 0 0 1 2 18.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 3.2a1.8 1.8 0 1 0 0 3.6A1.8 1.8 0 0 0 5 14zM9 5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 18.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 4.2a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4zM16 9.5A1.5 1.5 0 0 1 17.5 8h3A1.5 1.5 0 0 1 22 9.5v9a1.5 1.5 0 0 1-1.5 1.5h-3a1.5 1.5 0 0 1-1.5-1.5zm3 1.3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm0 3.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z"/>'),
+  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>',
   check: wrap('<path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.1 8.4 18.7 7z"/>'),
   playAll: wrap('<path d="M8 5.6v12.8a.6.6 0 0 0 .92.5l9.7-6.4a.6.6 0 0 0 0-1L8.92 5.1A.6.6 0 0 0 8 5.6z"/>'),
   note: wrap('<path d="M19 3.2v11.3a3.3 3.3 0 1 1-1.8-2.9V7.9L9.8 9.6v7.1a3.3 3.3 0 1 1-1.8-2.9V6.3a1 1 0 0 1 .78-.98l9-2.08A1 1 0 0 1 19 3.2z"/>'),
 };
 
-const lineIcon = (d: string) =>
-  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-/** Icons for the media browser's folders, matched by name (as Music Assistant's sidebar has them). */
+const lineIcon = (d: string, box = '0 0 24 24', width = 2) =>
+  `<svg viewBox="${box}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+/**
+ * Icons for the media browser's folders, matched by name: the ones Music Assistant's own sidebar
+ * uses (Lucide, ISC; Artists and Genres are Music Assistant's own, Apache 2.0).
+ */
 const FOLDER_ICONS: [RegExp, string][] = [
-  [/artist/i, lineIcon('<circle cx="10" cy="8" r="3.5"/><path d="M3.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 4v8.5a2 2 0 1 1-1.5-1.94"/>')],
-  [/album/i, lineIcon('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.5"/>')],
-  [/track|song/i, lineIcon('<path d="M10 18V5l8-1.5"/><circle cx="7.5" cy="18" r="2.5"/>')],
-  [/playlist/i, lineIcon('<path d="M4 6h11M4 11h11M4 16h6"/><path d="M18 9v8a2 2 0 1 1-1.5-1.94"/>')],
-  [/audiobook|book/i, lineIcon('<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/>')],
-  [/podcast/i, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 12c0 .74-.4 1.38-1 1.72V22h-2v-8.28c-.6-.35-1-.98-1-1.72 0-1.1.9-2 2-2s2 .9 2 2zm-2-6c-3.31 0-6 2.69-6 6 0 1.74.75 3.31 1.94 4.4l1.42-1.42C8.53 14.25 8 13.19 8 12c0-2.21 1.79-4 4-4s4 1.79 4 4c0 1.19-.53 2.25-1.36 2.98l1.42 1.42C17.25 15.31 18 13.74 18 12c0-3.31-2.69-6-6-6zm0-4C6.48 2 2 6.48 2 12c0 2.85 1.2 5.41 3.11 7.24l1.42-1.42C4.98 16.36 4 14.29 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8c0 2.29-.98 4.36-2.53 5.82l1.42 1.42C20.8 17.41 22 14.85 22 12c0-5.52-4.48-10-10-10z"/></svg>'],
-  [/radio/i, lineIcon('<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/>')],
-  [/genre/i, lineIcon('<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5M3 16.5l9 5 9-5"/>')],
-  [/favou?rite/i, lineIcon('<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>')],
+  [/artist/i, lineIcon('<path d="M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 0c2.12 0 4.16.84 5.66 2.34M12 13c-2.12 0-4.16.84-5.66 2.34A8 8 0 0 0 4 21"/><path d="M21 21a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm0 0v-8l3.5 2"/>', '0 0 26 24')],
+  [/album/i, lineIcon('<circle cx="12" cy="12" r="10"/><path d="M6 12c0-1.7.7-3.2 1.8-4.2"/><circle cx="12" cy="12" r="2"/><path d="M18 12c0 1.7-.7 3.2-1.8 4.2"/>')],
+  [/track|song/i, lineIcon('<circle cx="8" cy="18" r="4"/><path d="M12 18V2l7 4"/>')],
+  [/playlist/i, lineIcon('<path d="M16 5H3"/><path d="M11 12H3"/><path d="M11 19H3"/><path d="M21 16V5"/><circle cx="18" cy="16" r="3"/>')],
+  [/audiobook|book/i, lineIcon('<path d="M12 6v7"/><path d="M16 8v3"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><path d="M8 8v3"/>')],
+  [/podcast/i, lineIcon('<path d="M16.85 18.58a9 9 0 1 0-9.7 0"/><path d="M8 14a5 5 0 1 1 8 0"/><circle cx="12" cy="11" r="1"/><path d="M13 17a1 1 0 1 0-2 0l.5 4.5a.5.5 0 1 0 1 0Z"/>')],
+  [/radio/i, lineIcon('<path d="M16.247 7.761a6 6 0 0 1 0 8.478"/><path d="M19.075 4.933a10 10 0 0 1 0 14.134"/><path d="M4.925 19.067a10 10 0 0 1 0-14.134"/><path d="M7.753 16.239a6 6 0 0 1 0-8.478"/><circle cx="12" cy="12" r="2"/>')],
+  [/genre/i, lineIcon('<path d="M49.83 33.63a2 2 0 0 1-1.23 1.92l-17.87 8.12a4.2 4.2 0 0 1-3.44 0L12 36.72m-3.83 7.33a2 2 0 0 0 1.2 1.9l17.92 8.14a4.2 4.2 0 0 0 3.44 0l17.87-8.12a2 2 0 0 0 1.23-1.92M19 29.48l8.29 3.78a4.2 4.2 0 0 0 3.46 0l17.87-8.13a2 2 0 0 0 0-3.81l-17.9-8.15a4.2 4.2 0 0 0-3.46 0L22 15.63"/><path d="M13.2 24.1a5.6 5.53 0 1 1-11.2 0 5.6 5.53 0 0 1 11.2 0Zm0 0V2l9.8 5.53"/>', '0 0 52 57', 4)],
+  [/favou?rite/i, lineIcon('<path d="M2 9.5a5.5 5.5 0 0 1 9.59-3.68.56.56 0 0 0 .82 0A5.5 5.5 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.49 5.31a2 2 0 0 1-3 .02L5 15c-1.5-1.5-3-3.2-3-5.5"/>')],
 ];
 const folderIcon = (title: string) =>
   FOLDER_ICONS.find(([re]) => re.test(title))?.[1] ?? lineIcon('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
+
+/**
+ * The album art's most prominent colour, as "r, g, b" (null when it can't be read): the
+ * background is tinted with it. The art is shrunk to 24×24; each pixel votes for its hue (one of
+ * 24), weighted by how colourful it is, and the winning hue's pixels are averaged. Greys barely
+ * vote, so a red cover on a white background still comes out red.
+ */
+/**
+ * The cover's colour made bright and colourful enough to show as a glow on a TV: the same hue,
+ * at a fixed lightness and at least moderate saturation, so a dark or muted cover still tints
+ * visibly (greys stay grey). Returns "r, g, b".
+ */
+function vivid(r: number, g: number, b: number, l = 0.48): string {
+  const [R, G, B] = [r / 255, g / 255, b / 255];
+  const max = Math.max(R, G, B);
+  const min = Math.min(R, G, B);
+  const d = max - min;
+  let h = 0;
+
+  if (d) {
+    if (max === R) h = ((G - B) / d + 6) % 6;
+    else if (max === G) h = (B - R) / d + 2;
+    else h = (R - G) / d + 4;
+  }
+  const l0 = (max + min) / 2;
+  const s0 = d ? d / (1 - Math.abs(2 * l0 - 1)) : 0;
+  const s = s0 < 0.08 ? s0 : Math.max(s0, 0.7);
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h % 2) - 1));
+  const m = l - c / 2;
+  const [r1, g1, b1] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x];
+
+  return [r1, g1, b1].map((v) => Math.round((v + m) * 255)).join(', ');
+}
+
+function artTint(url: string, lightness?: number): Promise<string | null> {
+  if (!url) return Promise.resolve(null);
+  // On the TV, Home Assistant's picture comes through the app, so its pixels can be read.
+  const readable = native && new URL(url, location.href).origin !== location.origin ? `/calmtv-art?u=${encodeURIComponent(url)}` : url;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onerror = () => {
+      console.warn('Album art colour: the picture could not be read', url);
+      resolve(null);
+    };
+    img.onload = () => {
+      try {
+        const n = 24;
+        const cv = document.createElement('canvas');
+        cv.width = n;
+        cv.height = n;
+        const cx = cv.getContext('2d');
+
+        if (!cx) return resolve(null);
+        cx.drawImage(img, 0, 0, n, n);
+        const px = cx.getImageData(0, 0, n, n).data;
+        const votes = new Array<number>(24).fill(0);
+        const sums = Array.from({ length: 24 }, () => [0, 0, 0, 0]);
+
+        for (let i = 0; i < px.length; i += 4) {
+          const [r, g, b] = [px[i], px[i + 1], px[i + 2]];
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const chroma = max - min;
+
+          if (max < 30) continue;
+          let h = 0;
+
+          if (chroma) {
+            if (max === r) h = ((g - b) / chroma + 6) % 6;
+            else if (max === g) h = (b - r) / chroma + 2;
+            else h = (r - g) / chroma + 4;
+          }
+          const bin = Math.floor(h * 4) % 24;
+          const w = (chroma / 255) ** 2 + 0.01;
+          votes[bin] += w;
+          sums[bin][0] += r * w;
+          sums[bin][1] += g * w;
+          sums[bin][2] += b * w;
+          sums[bin][3] += w;
+        }
+        const best = votes.indexOf(Math.max(...votes));
+        const [r, g, b, w] = sums[best];
+
+        resolve(w ? vivid(r / w, g / w, b / w, lightness) : null);
+      } catch {
+        resolve(null); // a picture from another address that doesn't allow reading its pixels
+      }
+    };
+    img.src = readable;
+  });
+}
 
 /** A queue entry, as music_assistant.get_queue answers (only the parts used here). */
 interface QueueItem {
@@ -51,6 +152,7 @@ interface QueueItem {
 }
 
 interface QueueInfo {
+  queue_id?: string;
   items?: number;
   current_index?: number | null;
   shuffle_enabled?: boolean;
@@ -96,10 +198,15 @@ interface BrowseNode {
   children?: BrowseNode[];
 }
 
-type Area = 'controls' | 'speakers' | 'cats' | 'browse';
-const CAT_COLS = 3;
+type Area = 'controls' | 'speakers' | 'cats' | 'browse' | 'queue';
+/** Queue items asked of Music Assistant at a time, and at most in all. */
+const QUEUE_PAGE = 100;
+/** While grouping, the "Play everywhere" tile beside Done (top right of the speakers). */
+const EVERYWHERE = -2;
+const QUEUE_MAX = 500;
+const CAT_COLS = 4;
 /** The two rows of controls under the art: playback, then volume and grouping. */
-const CONTROL_ROWS = [['shuffle', 'prev', 'playpause', 'next', 'queue'], ['volDown', 'volUp', 'group']] as const;
+const CONTROL_ROWS = [['shuffle', 'prev', 'playpause', 'next', 'queue'], ['volDown', 'volUp']] as const;
 type Control = (typeof CONTROL_ROWS)[number][number];
 /** A folder's items drawn at most (Music Assistant can list thousands of tracks). */
 const MAX_ITEMS = 500;
@@ -137,6 +244,13 @@ export class MusicPanel {
   private queueMsg = '';
   private queueFor = '';
   private queueTitle = '';
+  /** The whole queue, straight from Music Assistant when it's set up on this TV (see music-assistant.ts). */
+  private maQueueId = '';
+  private maItems: MaQueueItem[] = [];
+  /** The queue position of maItems[0]. */
+  private maStart = 0;
+  private maLoading = false;
+  private qFocus = 0;
   private spk = 0;
   private cat = 0;
   /** The browser's folders, outermost first; empty when the speakers and categories show. */
@@ -148,7 +262,9 @@ export class MusicPanel {
   private catsMsg = '';
   private tick = 0;
   /** Volume just set, shown until HA catches up. */
-  private heldVolume: { entity: string; value: number; until: number } | null = null;
+  private heldVolume = new Map<string, { value: number; until: number }>();
+  /** OK on a speaker turns its card into a volume slider: ←/→ change it, OK or Back when done. */
+  private slider = false;
   /** The speakers' states as last drawn (see the constructor). */
   private lastSig = '';
   /** The album art now shown, so a redraw only swaps the picture when it really changes. */
@@ -159,11 +275,21 @@ export class MusicPanel {
   private heldGroup = new Map<string, { joined: boolean; until: number }>();
 
   constructor(mount: HTMLElement) {
+    // From the TV app: the remote's volume keys, while this panel is open (see show()).
+    window.addEventListener('ct-resume', () => {
+      if (this.open) native?.setVolumeKeys?.(true);
+    });
+    window.addEventListener('ct-volume', (e) => {
+      if (!this.open || !(e instanceof CustomEvent)) return;
+      for (const ent of this.volumeTargets()) this.stepVolume(ent, e.detail === 'up');
+      this.render();
+    });
     this.el = document.createElement('div');
     this.el.className = 'music';
     this.el.innerHTML = `
       <div class="music-bg"></div>
       <div class="music-scrim"></div>
+      <div class="music-logo" aria-hidden="true">${icon('musicassistant')}</div>
       <div class="music-body">
         <div class="music-now">
           <div class="music-art"></div>
@@ -180,13 +306,15 @@ export class MusicPanel {
             <div class="music-volbar"><i></i></div>
             <span class="music-vol"></span>
             <button class="mbtn" data-c="volUp"></button>
-            <button class="mbtn" data-c="group"></button>
           </div>
         </div>
         <div class="music-side">
           <div class="music-home">
-            <div class="music-h music-spk-h">Speakers</div>
-            <div class="music-speakers"></div>
+            <div class="music-spk-top">
+              <div class="music-h music-spk-h">Speakers</div>
+              <div class="music-note"></div>
+            </div>
+            <div class="music-spk-wrap"><div class="music-speakers"></div><div class="music-spk-track"><i></i></div></div>
             <div class="music-h music-lib-h">Library</div>
             <div class="music-cats"></div>
           </div>
@@ -200,6 +328,7 @@ export class MusicPanel {
       <div class="music-hint">Back to close</div>`;
     mount.appendChild(this.el);
     // Every state change in the house arrives here; redraw only when one of the speakers changed.
+    ha.onStatus(() => this.render());
     ha.onEntities(() => {
       if (!this.open) return;
       const sig = this.playersSignature();
@@ -221,11 +350,14 @@ export class MusicPanel {
   show(): void {
     this.players = musicPlayers();
     this.open = true;
+    // The remote's volume keys turn the chosen speaker's group while the panel is open (TV app only).
+    native?.setVolumeKeys?.(true);
     // Start on the speaker that's playing, if any.
     const playing = this.players.findIndex((p) => ha.entities[p.entity]?.state === 'playing');
     this.active = this.spk = Math.max(0, playing);
     this.area = 'speakers';
     this.grouping = false;
+    this.slider = false;
     this.queueOpen = false;
     this.levels = [];
     this.lastSig = this.playersSignature();
@@ -237,6 +369,7 @@ export class MusicPanel {
 
   close(): void {
     this.open = false;
+    native?.setVolumeKeys?.(false);
     this.grouping = false;
     clearInterval(this.tick);
     this.el.classList.remove('open');
@@ -334,18 +467,69 @@ export class MusicPanel {
     if (p) void ha.call('media_player', service, { entity_id: p.entity, ...data });
   }
 
-  private volume(): number | undefined {
-    const p = this.player;
+  /** One speaker's volume (0–1), or the one just set until HA catches up. */
+  private volumeOf(entity: string): number | undefined {
+    const held = this.heldVolume.get(entity);
 
-    if (!p) return undefined;
-
-    if (this.heldVolume && this.heldVolume.entity === p.entity && this.heldVolume.until > Date.now()) return this.heldVolume.value;
-    const v = ha.entities[p.entity]?.attributes.volume_level;
+    if (held && held.until > Date.now()) return held.value;
+    const v = ha.entities[entity]?.attributes.volume_level;
 
     return typeof v === 'number' ? v : undefined;
   }
 
+  /** The speakers the volume buttons turn: every speaker in the group, not only the chosen one. */
+  private volumeTargets(): string[] {
+    return [...this.group()].filter((e) => ha.entities[e]?.state !== 'unavailable' && this.volumeOf(e) !== undefined);
+  }
+
+  /** The volume bar under the controls: the chosen speaker's, or the group's average. */
+  private volume(): number | undefined {
+    const vols = this.volumeTargets().map((e) => this.volumeOf(e)!);
+
+    return vols.length ? vols.reduce((a, b) => a + b, 0) / vols.length : undefined;
+  }
+
+  /** Turns one speaker up or down a step. */
+  private stepVolume(entity: string, up: boolean): void {
+    const now = this.volumeOf(entity);
+
+    if (now === undefined) return;
+    const value = Math.round(Math.min(1, Math.max(0, now + (up ? VOLUME_STEP : -VOLUME_STEP))) * 100) / 100;
+    this.heldVolume.set(entity, { value, until: Date.now() + 4000 });
+    void ha.call('media_player', 'volume_set', { entity_id: entity, volume_level: value });
+  }
+
   /** The speakers playing together with the chosen one (the chosen one included). */
+  /**
+   * The speaker this one plays along with, or none if it leads or plays alone. Home Assistant
+   * lists a group's members with the leader first; the chosen speaker's own changes show at once.
+   */
+  private leaderOf(entity: string): string | undefined {
+    const p = this.player;
+
+    if (p && entity !== p.entity && this.group().has(entity)) return p.entity;
+    const members = ha.entities[entity]?.attributes.group_members;
+    const lead = Array.isArray(members) ? members[0] : undefined;
+
+    return typeof lead === 'string' && lead !== entity && this.players.some((pl) => pl.entity === lead) ? lead : undefined;
+  }
+
+  /**
+   * A speaker's cover as a small square, with bars (or, for a speaker
+   * playing along, a link) on it. A group whose leader isn't playing shows plain squares instead:
+   * the leader with the group icon, the others with the link. An idle speaker can still hold its
+   * last cover, so only a playing or paused leader's cover is shown.
+   */
+  private cover(entity: string, linked: boolean): string {
+    const e = ha.entities[entity];
+    const on = e?.state === 'playing' || e?.state === 'paused';
+    const pic = on && typeof e.attributes.entity_picture === 'string' ? haPath(e.attributes.entity_picture) : '';
+
+    const mark = linked ? ICON.link : on ? '<span class="mspk-bars"><i></i><i></i><i></i></span>' : ICON.group;
+
+    return `<span class="mspk-cover${e?.state === 'playing' ? ' moving' : ''}${on ? '' : ' still'}">${pic ? `<img src="${esc(pic)}" alt="">` : ''}<span class="mspk-over">${mark}</span></span>`;
+  }
+
   private group(): Set<string> {
     const p = this.player;
 
@@ -427,6 +611,8 @@ export class MusicPanel {
       });
       this.queue = reply.response?.[p.entity] ?? null;
       this.queueMsg = this.queue ? '' : 'No queue';
+
+      if (this.queue && maConfigured()) void this.loadFullQueue(p, this.queue);
     } catch (e) {
       console.warn('Music queue', e);
       this.queue = null;
@@ -436,11 +622,63 @@ export class MusicPanel {
     this.renderQueue();
   }
 
+  /** The rest of the queue after the current song, from Music Assistant itself. */
+  private async loadFullQueue(p: Player, q: QueueInfo): Promise<void> {
+    const start = (q.current_index ?? -1) + 1;
+
+    try {
+      let id = q.queue_id ?? '';
+
+      // Older Home Assistant doesn't say which queue it is: find it by the speaker's name.
+      if (!id) {
+        const name = String(ha.entities[p.entity]?.attributes.friendly_name ?? p.name).toLowerCase();
+        const all = await ma.queues();
+        id = (all.find((x) => x.display_name?.toLowerCase() === name) ?? all.find((x) => x.display_name?.toLowerCase() === p.name.toLowerCase()))?.queue_id ?? '';
+      }
+
+      if (!id) return;
+      const items = await ma.items(id, start, QUEUE_PAGE);
+
+      if (this.queueFor !== p.entity) return;
+      this.maQueueId = id;
+      this.maStart = start;
+      this.maItems = items;
+      this.qFocus = Math.min(this.qFocus, Math.max(0, items.length - 1));
+    } catch (e) {
+      console.warn('Music Assistant queue', e);
+      this.maItems = [];
+    }
+
+    this.renderQueue();
+  }
+
+  /** The next page, when the remote gets near the end of what's loaded. */
+  private async moreQueue(): Promise<void> {
+    const q = this.queue;
+
+    if (this.maLoading || !this.maQueueId || !q?.items || this.maItems.length >= QUEUE_MAX) return;
+
+    if (this.maStart + this.maItems.length >= q.items) return;
+    this.maLoading = true;
+
+    try {
+      const more = await ma.items(this.maQueueId, this.maStart + this.maItems.length, QUEUE_PAGE);
+      this.maItems = [...this.maItems, ...more];
+    } catch (e) {
+      console.warn('Music Assistant queue', e);
+    }
+
+    this.maLoading = false;
+    this.renderQueue();
+  }
+
   private toggleQueue(): void {
     this.queueOpen = !this.queueOpen;
 
     if (this.queueOpen) {
       this.queue = null;
+      this.maItems = [];
+      this.qFocus = 0;
       void this.loadQueue();
     }
   }
@@ -454,15 +692,11 @@ export class MusicPanel {
       case 'playpause': this.act(state === 'playing' ? 'media_pause' : 'media_play'); break;
       case 'volDown':
       case 'volUp': {
-        const now = this.volume();
-
-        if (now === undefined || !this.player) break;
-        const value = Math.round(Math.min(1, Math.max(0, now + (c === 'volUp' ? VOLUME_STEP : -VOLUME_STEP))) * 100) / 100;
-        this.heldVolume = { entity: this.player.entity, value, until: Date.now() + 4000 };
-        this.act('volume_set', { volume_level: value });
+        // Each speaker in the group moves a step from its own level (Music Assistant's
+        // volume_set on the chosen speaker alone leaves the others where they were).
+        for (const e of this.volumeTargets()) this.stepVolume(e, c === 'volUp');
         break;
       }
-      case 'group': this.startGrouping(); break;
       case 'shuffle': {
         const on = this.player ? ha.entities[this.player.entity]?.attributes.shuffle === true : false;
         this.act('shuffle_set', { shuffle: !on });
@@ -492,52 +726,105 @@ export class MusicPanel {
     if (pic !== this.artUrl) {
       this.artUrl = pic;
       child(this.el, '.music-art').innerHTML = pic ? `<img src="${esc(pic)}" alt="">` : `<div class="music-art-empty">${ICON.note}</div>`;
-      child(this.el, '.music-bg').style.backgroundImage = pic ? `url("${pic.replace(/"/g, '%22')}")` : 'none';
+      void artTint(pic).then((rgb) => {
+        if (this.artUrl === pic) this.el.style.setProperty('--art-tint', rgb ?? '40, 46, 52');
+      });
     }
     const title = typeof a.media_title === 'string' ? a.media_title : '';
-    child(this.el, '.music-title').textContent = title || (s ? (s.state === 'unavailable' ? 'Unavailable' : 'Nothing playing') : 'No speakers');
+    // Without Home Assistant there's nothing to show: say so, not "Unavailable" on every speaker.
+    const offline = ha.status === 'signed-out' ? 'Not connected to Home Assistant' : ha.status === 'connected' ? '' : 'Connecting to Home Assistant…';
+    child(this.el, '.music-title').textContent = offline || title || (s ? (s.state === 'unavailable' ? 'Unavailable' : 'Nothing playing') : 'No speakers');
     child(this.el, '.music-artist').textContent = [a.media_artist, a.media_album_name].filter((x) => typeof x === 'string' && x).join(' · ') || (p?.name ?? '');
 
     const group = this.group();
     const others = this.players.filter((pl) => pl.entity !== p?.entity && group.has(pl.entity)).map((pl) => pl.name);
     child(this.el, '.music-group').innerHTML = others.length ? `${ICON.group}<span>Also on ${esc(others.join(', '))}</span>` : '';
-    child(this.el, '.music-spk-h').textContent = this.grouping ? `Play on ${p?.name ?? ''} and… · OK to add or remove · Back when done` : 'Speakers';
+    child(this.el, '.music-spk-h').textContent = this.grouping ? `Play on ${p?.name ?? ''} and…` : 'Speakers';
+    child(this.el, '.music-note').textContent = this.grouping
+      ? 'OK on a speaker to add or take it out · Done or Back when finished'
+      : 'OK on the active speaker to change its volume · OK on an idle speaker to play music there';
     this.el.classList.toggle('grouping', this.grouping);
+    this.el.classList.toggle('sliding', this.slider);
 
     const focused = this.area === 'controls' ? CONTROL_ROWS[this.ctrlRow][this.ctrl] : null;
     this.el.querySelectorAll<HTMLElement>('.mbtn').forEach((b) => {
       const c = b.dataset.c as Control;
       b.innerHTML = c === 'playpause' ? (s?.state === 'playing' ? ICON.pause : ICON.play) : ICON[c];
       b.classList.toggle('big', c === 'playpause');
-      b.classList.toggle('on', (c === 'shuffle' && a.shuffle === true) || (c === 'queue' && this.queueOpen) || (c === 'group' && others.length > 0));
+      b.classList.toggle('on', (c === 'shuffle' && a.shuffle === true) || (c === 'queue' && this.queueOpen) );
       b.classList.toggle('focus', c === focused);
     });
     const vol = this.volume();
     child(this.el, '.music-vol').textContent = vol === undefined ? '' : `${Math.round(vol * 100)}%`;
     child(this.el, '.music-volbar i').style.width = `${Math.round((vol ?? 0) * 100)}%`;
 
-    child(this.el, '.music-speakers').innerHTML = this.players
+    const at = (i: number) => (this.area === 'speakers' && this.spk === i ? ' focus' : '');
+    const groupTile = this.players.length < 2 ? '' : this.grouping
+      ? `<div class="mspk top${at(-1)}"><span class="mspk-ico">${ICON.check}</span><div class="mspk-text"><div class="mspk-name"><span>Done grouping</span></div><div class="mspk-status"><span>${others.length ? `${others.length + 1} speakers together` : 'Just one speaker'}</span></div></div></div>`
+        + `<div class="mspk top${at(EVERYWHERE)}"><span class="mspk-ico">${ICON.everywhere}</span><div class="mspk-text"><div class="mspk-name"><span>${this.allGrouped() ? 'Just this speaker' : 'Play everywhere'}</span></div><div class="mspk-status"><span>${this.allGrouped() ? 'Take the others out' : 'Every speaker plays along'}</span></div></div></div>`
+      : `<div class="mspk wide${this.area === 'speakers' && this.spk === -1 ? ' focus' : ''}"><span class="mspk-ico">${ICON.group}</span><div class="mspk-text"><div class="mspk-name"><span>Group speakers</span></div><div class="mspk-status"><span>${others.length ? `${esc(p?.name ?? '')} with ${esc(others.join(', '))}` : `Play what ${esc(p?.name ?? 'this speaker')} is playing in more rooms`}</span></div></div></div>`;
+    const focusPl = this.area === 'speakers' && !this.grouping && !offline ? this.players[this.spk] : undefined;
+    const focusHost = focusPl ? this.leaderOf(focusPl.entity) ?? focusPl.entity : undefined;
+    child(this.el, '.music-speakers').innerHTML = groupTile + this.players
       .map((pl, i) => {
         const e = ha.entities[pl.entity];
         const t = e?.attributes.media_title;
         const inGroup = i !== this.active && group.has(pl.entity);
-        const status = !e || e.state === 'unavailable' ? 'Unavailable'
+        const status = offline ? (ha.status === 'signed-out' ? 'Not connected' : 'Connecting…')
+          : !e || e.state === 'unavailable' ? 'Unavailable'
           : inGroup ? `With ${p?.name ?? ''}`
+          : this.leaderOf(pl.entity) ? `With ${this.players.find((x) => x.entity === this.leaderOf(pl.entity))?.name ?? ''}`
           : this.grouping && i === this.active ? 'Chosen speaker · OK when done'
           : e.state === 'playing' ? `Playing · ${typeof t === 'string' ? t : ''}` : e.state === 'paused' ? 'Paused' : 'Idle';
-        const cls = ['mspk', i === this.active ? 'active' : '', inGroup ? 'grouped' : '', e?.state === 'playing' ? 'playing' : '', this.area === 'speakers' && this.spk === i ? 'focus' : ''].join(' ');
-        const mark = this.grouping ? `<span class="mspk-check${i === this.active || inGroup ? ' on' : ''}">${i === this.active || inGroup ? ICON.check : ''}</span>` : '<span class="mspk-dot"></span>';
+        // Playing (or paused) speakers show their cover; ones playing along show their leader's.
+        const lead = offline || !e || e.state === 'unavailable' ? undefined : this.leaderOf(pl.entity);
+        const host = lead ?? pl.entity;
+        const playing = (x: string) => ['playing', 'paused'].includes(ha.entities[x]?.state ?? '');
+        // Speakers grouped around one that isn't playing get plain squares and stay grey.
+        const leads = !offline && !lead && !!e && e.state !== 'unavailable' && this.players.some((x) => x.entity !== pl.entity && this.leaderOf(x.entity) === pl.entity);
+        const live = !offline && !!e && playing(host);
+        const marked = live || !!lead || leads;
+        // The focused speaker's group lights up softly, so it's clear which speakers play together.
+        const mate = !!focusHost && i !== this.spk && host === focusHost && (marked || leads);
+        const cls = ['mspk', i === this.active ? 'active' : '', inGroup ? 'grouped' : '', live ? 'live' : '', mate ? 'mate' : '', this.area === 'speakers' && this.spk === i ? 'focus' : ''].join(' ');
+        if (this.slider && this.area === 'speakers' && this.spk === i) {
+          const v = this.volumeOf(pl.entity) ?? 0;
+
+          return `<div class="${cls} sliding"><span class="mspk-ico">${ICON.volUp}</span><div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div>`
+            + `<div class="mspk-slider"><div class="mspk-bar"><i style="width:${Math.round(v * 100)}%"></i></div><span class="mspk-pct">${Math.round(v * 100)}%</span></div></div></div>`;
+        }
+        // While grouping: the chosen speaker's square, a link on the ones playing along, an empty square on the rest.
+        const chosen = this.player?.entity ?? pl.entity;
+        const mark = this.grouping ? (i === this.active ? this.cover(chosen, false) : inGroup ? this.cover(chosen, true) : '<span class="mspk-cover still"></span>')
+          : marked ? this.cover(host, !!lead) : '<span class="mspk-dot"></span>';
 
         return `<div class="${cls}">${mark}<div class="mspk-text"><div class="mspk-name"><span>${esc(pl.name)}</span></div><div class="mspk-status"><span>${esc(status)}</span></div></div></div>`;
       })
-      .join('')
-      + (this.grouping ? `<div class="mspk everywhere${this.spk === this.players.length && this.area === 'speakers' ? ' focus' : ''}"><span class="mspk-ico">${ICON.everywhere}</span><div class="mspk-text"><div class="mspk-name"><span>${this.allGrouped() ? 'Just this speaker' : 'Play everywhere'}</span></div><div class="mspk-status"><span>${this.allGrouped() ? 'Take the others out' : 'Every speaker plays along'}</span></div></div></div>` : '');
+      .join('');
+    // With many speakers the sheet scrolls: keep the focused one in view.
+    this.el.querySelector<HTMLElement>('.music-speakers .mspk.focus')?.scrollIntoView({ block: 'nearest' });
+    this.speakerTrack();
     this.marquee();
 
     this.renderProgress();
     this.renderCats();
     this.renderBrowse();
     this.renderQueue();
+  }
+
+  /** The thin track beside the speakers, shown only when there are more than fit. */
+  private speakerTrack(): void {
+    const box = child(this.el, '.music-speakers');
+    const track = child(this.el, '.music-spk-track');
+    const more = box.scrollHeight - box.clientHeight;
+
+    track.classList.toggle('on', more > 2);
+    track.parentElement?.classList.toggle('more', more > 2);
+    if (more <= 2) return;
+    const share = box.clientHeight / box.scrollHeight;
+    const thumb = child(track, 'i');
+    thumb.style.height = `${share * 100}%`;
+    thumb.style.top = `${(box.scrollTop / more) * (1 - share) * 100}%`;
   }
 
   /** Speaker cards keep their size; a name or status too long for the focused card scrolls. */
@@ -579,9 +866,31 @@ export class MusicPanel {
       q.repeat_mode && q.repeat_mode !== 'off' ? `Repeat ${q.repeat_mode}` : '',
     ].filter(Boolean).join(' · ') : '';
 
+    if (q && this.maItems.length) {
+      // The whole queue from Music Assistant: a list to scroll through and jump into.
+      const list = this.maItems.map((it, i) => {
+        const m = it.media_item;
+        const img = ma.image(it);
+        const artists = (m?.artists ?? []).map((x) => x.name).filter(Boolean).join(', ');
+
+        return `<div class="mql${this.area === 'queue' && this.qFocus === i ? ' focus' : ''}">`
+          + `<div class="mql-art">${img ? `<img loading="lazy" src="${esc(img)}" alt="" onerror="this.remove()">` : ''}${ICON.note}</div>`
+          + `<div class="mql-text"><div class="mql-name">${esc(m?.name ?? it.name ?? '')}</div><div class="mql-sub">${esc(artists)}</div></div>`
+          + `<div class="mq-time">${it.duration ? mmss(it.duration) : ''}</div></div>`;
+      }).join('');
+      box.innerHTML = `<div class="music-h">Queue · ${esc(this.player?.name ?? '')}</div>`
+        + row('Now playing', q.current_item)
+        + `<div class="mq-h">Up next${facts ? ` · ${esc(facts)}` : ''}</div>`
+        + `<div class="mq-list">${list}</div>`;
+      box.querySelector<HTMLElement>('.mql.focus')?.scrollIntoView({ block: 'nearest' });
+
+      return;
+    }
+
     box.innerHTML = `<div class="music-h">Queue · ${esc(this.player?.name ?? '')}</div>`
       + (q ? row('Now playing', q.current_item) + (q.next_item ? row('Up next', q.next_item) : '<div class="mq-h">Up next</div><div class="music-lib-msg">Nothing after this one</div>')
         + (facts ? `<div class="mq-facts">${esc(facts)}</div>` : '')
+        + (maConfigured() ? '' : '<div class="mq-facts mq-tip">To see the whole queue, connect Music Assistant in Settings → Home Assistant → Music Assistant.</div>')
         : `<div class="music-lib-msg">${esc(this.queueMsg)}</div>`);
   }
 
@@ -589,7 +898,7 @@ export class MusicPanel {
     const box = child(this.el, '.music-cats');
 
     if (!this.cats.length) {
-      box.innerHTML = `<div class="music-lib-msg">${esc(this.catsMsg)}</div>`;
+      box.innerHTML = `<div class="music-lib-msg">${esc(this.catsMsg || 'The library shows up once a speaker is available')}</div>`;
 
       return;
     }
@@ -605,7 +914,7 @@ export class MusicPanel {
   private renderBrowse(): void {
     const level = this.levels.at(-1);
     this.el.classList.toggle('browsing', !!level);
-    child(this.el, '.music-hint').textContent = level ? 'Back to go back' : this.grouping ? 'Back when done' : this.queueOpen ? 'Back to close the queue' : 'Back to close';
+    child(this.el, '.music-hint').textContent = level ? 'Back to go back' : this.slider ? '← → volume · OK when done' : this.grouping ? 'Back when done' : this.queueOpen ? 'Back to close the queue' : 'Back to close';
 
     if (!level) {
       this.drawnLevel = null;
@@ -671,6 +980,13 @@ export class MusicPanel {
         return;
       }
 
+      if (this.slider) {
+        this.slider = false;
+        this.render();
+
+        return;
+      }
+
       if (this.grouping) {
         this.grouping = false;
         this.render();
@@ -680,6 +996,7 @@ export class MusicPanel {
 
       if (this.queueOpen) {
         this.queueOpen = false;
+        if (this.area === 'queue') this.area = 'controls';
         this.render();
 
         return;
@@ -692,19 +1009,50 @@ export class MusicPanel {
 
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(k)) return;
     e.preventDefault();
-    const spkCount = this.players.length + (this.grouping ? 1 : 0);
+    const spkCount = this.players.length;
+
+    if (this.slider) {
+      const pl = this.players[this.spk];
+
+      if ((k === 'ArrowLeft' || k === 'ArrowRight') && pl) this.stepVolume(pl.entity, k === 'ArrowRight');
+      else this.slider = false;
+      this.render();
+
+      return;
+    }
 
     if (k === 'Enter' || k === ' ') {
       if (this.area === 'controls') this.press(CONTROL_ROWS[this.ctrlRow][this.ctrl]);
-      else if (this.area === 'speakers' && this.grouping) {
+      else if (this.area === 'queue') {
+        const it = this.maItems[this.qFocus];
+
+        if (it && this.maQueueId) {
+          void ma.playIndex(this.maQueueId, it.queue_item_id).catch((err) => console.warn('Music Assistant play', err));
+          // The list starts after the new song once Home Assistant reports it.
+          this.qFocus = 0;
+          this.area = 'controls';
+        }
+      }
+      else if (this.area === 'speakers' && this.spk === -1) {
+        if (this.grouping) this.grouping = false;
+        else this.startGrouping();
+      } else if (this.area === 'speakers' && this.grouping) {
         const pl = this.players[this.spk];
 
-        if (this.spk === this.players.length) this.everywhere();
+        if (this.spk === EVERYWHERE) this.everywhere();
         else if (this.spk === this.active) this.grouping = false;
         else if (pl) this.toggleGroup(pl.entity);
       } else if (this.area === 'speakers') {
-        this.active = this.spk;
-        void this.loadCats();
+        const pl = this.players[this.spk];
+
+        // OK on the chosen speaker (or one playing along with it) opens its volume slider;
+        // OK on any other speaker chooses it, to play something else there.
+        if (pl && (this.spk === this.active || this.group().has(pl.entity))) {
+          this.slider = ha.entities[pl.entity]?.state !== 'unavailable' && this.volumeOf(pl.entity) !== undefined;
+        } else {
+          this.active = this.spk;
+          void this.loadCats();
+        }
       } else if (this.area === 'cats') {
         const c = this.cats[this.cat];
 
@@ -724,25 +1072,40 @@ export class MusicPanel {
     }
 
     // What's on the right: the browser, the queue (nothing to focus), or speakers and library.
-    const right = (): Area | null => (this.levels.length ? 'browse' : this.queueOpen ? null : 'speakers');
+    const right = (): Area | null => (this.levels.length ? 'browse' : this.queueOpen ? (this.maItems.length ? 'queue' : null) : 'speakers');
 
     if (this.area === 'controls') {
       const row = CONTROL_ROWS[this.ctrlRow];
 
-      if (k === 'ArrowLeft') this.ctrl = Math.max(0, this.ctrl - 1);
+      if (k === 'ArrowLeft') {
+        if (this.ctrl > 0) this.ctrl--;
+        else if (!e.repeat && right() === 'speakers' && this.cats.length && !this.grouping) {
+          // Wraps around to the end of the library row level with it (not while held).
+          this.area = 'cats';
+          const lastRow = Math.floor((this.cats.length - 1) / CAT_COLS);
+          this.cat = Math.min(this.cats.length - 1, Math.min(this.ctrlRow, lastRow) * CAT_COLS + CAT_COLS - 1);
+        }
+      }
       if (k === 'ArrowRight') {
         if (this.ctrl < row.length - 1) this.ctrl++;
-        else if (right()) this.area = right()!;
+        else if (right() === 'speakers' && this.cats.length && !this.grouping) {
+          // The library sits level with the controls: right goes straight across to the same row.
+          this.area = 'cats';
+          this.cat = Math.min(this.ctrlRow * CAT_COLS, Math.floor((this.cats.length - 1) / CAT_COLS) * CAT_COLS);
+        } else if (right()) this.area = right()!;
       }
-      if (k === 'ArrowDown' && this.ctrlRow === 0) {
-        this.ctrlRow = 1;
-        this.ctrl = Math.min(this.ctrl, CONTROL_ROWS[1].length - 1);
+      if (k === 'ArrowDown') {
+        if (this.ctrlRow === 0) {
+          this.ctrlRow = 1;
+          this.ctrl = this.ctrl <= 2 ? 0 : 1;
+        }
       }
       if (k === 'ArrowUp') {
         if (this.ctrlRow === 1) {
           this.ctrlRow = 0;
-          this.ctrl = Math.min(this.ctrl + 1, CONTROL_ROWS[0].length - 1);
+          this.ctrl = this.ctrl === 0 ? 1 : 3;
         } else if (right() === 'browse') this.area = 'browse';
+        else if (right() === 'queue') this.area = 'queue';
         else if (right() === 'speakers') {
           // Up from the controls goes to the library (or the speakers if there's no library).
           if (this.cats.length && !this.grouping) {
@@ -754,27 +1117,54 @@ export class MusicPanel {
           }
         }
       }
+    } else if (this.area === 'queue') {
+      if (k === 'ArrowLeft') this.area = 'controls';
+      if (k === 'ArrowUp') this.qFocus = Math.max(0, this.qFocus - 1);
+      if (k === 'ArrowDown') this.qFocus = Math.min(this.maItems.length - 1, this.qFocus + 1);
+      if (this.qFocus > this.maItems.length - 10) void this.moreQueue();
     } else if (this.area === 'speakers') {
-      // Two columns of speakers (plus "Play everywhere" while grouping).
-      if (k === 'ArrowUp') this.spk = Math.max(this.spk % 2, this.spk - 2);
+      // Two columns of speakers, under the Group tile (-1; while grouping, Done at -1 and
+      // Play everywhere at EVERYWHERE side by side).
+      if (k === 'ArrowUp' && this.spk >= 0) {
+        if (this.spk >= 2) this.spk -= 2;
+        else if (this.players.length > 1) this.spk = this.grouping && this.spk === 1 ? EVERYWHERE : -1;
+      }
       if (k === 'ArrowDown') {
-        if (this.spk + 2 < spkCount) this.spk += 2;
+        if (this.spk === -1) this.spk = 0;
+        else if (this.spk === EVERYWHERE) this.spk = Math.min(1, spkCount - 1);
+        else if (this.spk + 2 < spkCount) this.spk += 2;
         else if (this.spk % 2 === 0 && this.spk + 1 < spkCount && Math.floor(this.spk / 2) < Math.floor((spkCount - 1) / 2)) this.spk = spkCount - 1;
         else if (this.cats.length && !this.grouping) {
           this.area = 'cats';
           this.cat = this.spk % 2 === 0 ? 0 : Math.min(CAT_COLS - 1, this.cats.length - 1);
         }
       }
-      if (k === 'ArrowRight' && this.spk % 2 === 0 && this.spk + 1 < spkCount) this.spk++;
+      if (k === 'ArrowRight') {
+        if (this.spk === -1 && this.grouping) this.spk = EVERYWHERE;
+        else if (this.spk >= 0 && this.spk % 2 === 0 && this.spk + 1 < spkCount) this.spk++;
+      }
       if (k === 'ArrowLeft') {
-        if (this.spk % 2 === 1) this.spk--;
-        else if (!this.grouping) this.area = 'controls';
+        if (this.spk === EVERYWHERE) this.spk = -1;
+        else if (this.spk >= 0 && this.spk % 2 === 1) this.spk--;
+        else {
+          // Left out of the speakers goes to the controls; while grouping, that also finishes it.
+          this.grouping = false;
+          this.area = 'controls';
+        }
       }
     } else if (this.area === 'cats') {
       // A grid of library buttons, CAT_COLS across.
       const col = this.cat % CAT_COLS;
 
-      if (k === 'ArrowRight' && col < CAT_COLS - 1 && this.cat + 1 < this.cats.length) this.cat++;
+      if (k === 'ArrowRight') {
+        if (col < CAT_COLS - 1 && this.cat + 1 < this.cats.length) this.cat++;
+        else if (!e.repeat) {
+          // Wraps around to the start of the controls row level with it (not while held).
+          this.area = 'controls';
+          this.ctrlRow = Math.min(1, Math.floor(this.cat / CAT_COLS));
+          this.ctrl = 0;
+        }
+      }
       if (k === 'ArrowLeft') {
         if (col > 0) this.cat--;
         else this.area = 'controls';
@@ -788,7 +1178,12 @@ export class MusicPanel {
         }
       }
       if (k === 'ArrowUp') {
-        if (this.cat >= CAT_COLS) this.cat -= CAT_COLS;
+        if (this.cat >= CAT_COLS) {
+          // A short last row is centred, so Up goes to the button straight above.
+          const lastRow = Math.floor((this.cats.length - 1) / CAT_COLS) * CAT_COLS;
+          const shift = this.cat >= lastRow ? Math.floor((CAT_COLS - (this.cats.length - lastRow)) / 2) : 0;
+          this.cat -= CAT_COLS - shift;
+        }
         else {
           this.area = 'speakers';
           const lastRow = this.players.length - (this.players.length % 2 === 0 ? 2 : 1);

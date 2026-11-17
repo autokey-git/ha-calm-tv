@@ -10,6 +10,7 @@ import { videos } from './videos';
 import { wallpapers } from './wallpapers';
 import { showRemote } from './demo-remote';
 import { sky, PHASES } from './sky';
+import { ma } from './music-assistant';
 import artA from './wallpapers/00-mountain-lake-sunset.jpg?url';
 import artB from './wallpapers/01-stylized-forest-brook.jpg?url';
 
@@ -25,7 +26,7 @@ import artB from './wallpapers/01-stylized-forest-brook.jpg?url';
  *  - On a touch screen, an on-screen remote (demo-remote.ts).
  *  - ?demo&sky=night&wx=rainy holds the living sky at a time of day and weather; so does
  *    ctDemo.sky('dusk', 'snowy') in the console (ctDemo.sky() follows the clock again).
- *  - In the browser console: ctDemo.ring() rings the doorbell; ctDemo.caption('Title', 'detail')
+ *  - In the browser console: ctDemo.ring() rings the doorbell; ctDemo.door('binary_sensor.front_door', true) opens a door; ctDemo.range() gives the thermostat a heat/cool range; ctDemo.caption('Title', 'detail')
  *    shows a label at the top (ctDemo.caption('') hides it), for recordings.
  */
 
@@ -58,6 +59,8 @@ interface DemoAttributes {
   device_class?: string;
   current_temperature?: number;
   temperature?: number;
+  target_temp_low?: number;
+  target_temp_high?: number;
   min_temp?: number;
   max_temp?: number;
   options?: string[];
@@ -136,6 +139,10 @@ function initialStates() {
     ['light.porch', plainLight(true)],
     ['light.driveway', plainLight(false)],
     ['binary_sensor.garage_door', ['off', { device_class: 'garage_door' }]],
+    ['cover.garage_door', ['closed', { device_class: 'garage' }]],
+    ['binary_sensor.front_door', ['off', { device_class: 'door' }]],
+    ['weather.home', ['partlycloudy', { temperature: 48 }]],
+    ['binary_sensor.back_door', ['off', { device_class: 'door' }]],
     ['sensor.garage_temperature', ['54', { unit_of_measurement: '°F', device_class: 'temperature' }]],
     ['binary_sensor.garage_occupancy', ['off', { device_class: 'occupancy' }]],
     ['camera.front_door', just('idle')],
@@ -307,6 +314,8 @@ const ServiceCallSchema = v.object({
       brightness_pct: v.optional(v.number()),
       option: v.optional(v.string()),
       temperature: v.optional(v.number()),
+      target_temp_low: v.optional(v.number()),
+      target_temp_high: v.optional(v.number()),
       volume_level: v.optional(v.number()),
       media_content_id: v.optional(v.string()),
       group_members: v.optional(v.array(v.string())),
@@ -426,7 +435,7 @@ class DemoHome {
           return { name: t.title, duration: t.duration, media_item: { name: t.title, image: demoArt(i % DEMO_TRACKS.length), artists: [{ name: t.artist }], album: { name: t.album } } };
         };
 
-        return { response: { [id]: { items: 14, current_index: 3, shuffle_enabled: !!s.attributes.shuffle, repeat_mode: 'off', current_item: now < 0 ? null : item(now), next_item: now < 0 ? null : item(now + 1) } } };
+        return { response: { [id]: { queue_id: id, items: 14, current_index: 3, shuffle_enabled: !!s.attributes.shuffle, repeat_mode: 'off', current_item: now < 0 ? null : item(now), next_item: now < 0 ? null : item(now + 1) } } };
       }
       case 'media_player.join': {
         // Like Music Assistant: the leader and every member list the whole group.
@@ -471,6 +480,9 @@ class DemoHome {
         const opening = call.service === 'open_cover';
         this.set(id, opening ? 'opening' : 'closing');
         window.setTimeout(() => this.set(id, opening ? 'open' : 'closed'), 4000);
+
+        // The garage door's open/closed sensor follows the door.
+        if (id === 'cover.garage_door') this.set('binary_sensor.garage_door', opening ? 'on' : 'off');
         break;
       }
 
@@ -479,6 +491,7 @@ class DemoHome {
         break;
       case 'climate.set_temperature':
         if (data.temperature !== undefined) this.set(id, s.state, { temperature: data.temperature });
+        else if (data.target_temp_low !== undefined) this.set(id, s.state, { target_temp_low: data.target_temp_low, target_temp_high: data.target_temp_high });
         break;
     }
 
@@ -528,6 +541,22 @@ function caption(title: string, detail = ''): void {
 
 /** Switches the app to the made-up home. Call before the screens are built. */
 export function startDemo(): void {
+  // A made-up Music Assistant for the Music panel's full queue: 14 songs, playing the 4th.
+  const songs = ['Slow Tide', 'Paper Lanterns', 'Northern Window', 'Low Sun', 'Harbour Bells', 'Glass Garden', 'Still Water', 'Cedar Smoke', 'Morning Ferry', 'Long Shadows', 'Blue Hour', 'Salt Air', 'Quiet Streets', 'Last Light'];
+  ma.demo = (command, args) => {
+    if (command === 'player_queues/items') {
+      const offset = Number(args.offset ?? 0);
+
+      return songs.slice(offset, offset + Number(args.limit ?? 100)).map((name, j) => {
+        const i = offset + j;
+        const t = DEMO_TRACKS[i % DEMO_TRACKS.length];
+
+        return { queue_item_id: `q${i}`, name, duration: 180 + ((i * 37) % 90), demoArt: demoArt(i), media_item: { name, artists: [{ name: t.artist }] } };
+      });
+    }
+
+    return null;
+  };
   const clock = new URLSearchParams(location.search).get('at');
 
   if (clock) setClock(clock);
@@ -557,6 +586,9 @@ export function startDemo(): void {
   window.ctDemo = {
     caption,
     sky: (phase, condition) => sky.setPreview(PHASES.find((p) => p === phase), condition || undefined),
+    door: (id = 'binary_sensor.front_door', open = true) => home.set(id, open ? 'on' : 'off'),
+    // The thermostat holding a range (heat/cool), as many do in auto mode.
+    range: () => home.set('climate.thermostat', 'heat_cool', { temperature: undefined, target_temp_low: 66, target_temp_high: 74 }),
     ring: () => {
       home.set('input_boolean.doorbell_ringing', 'on');
       window.setTimeout(() => home.set('input_boolean.doorbell_ringing', 'off'), 20000);
@@ -567,6 +599,6 @@ export function startDemo(): void {
 declare global {
   interface Window {
     /** Demo mode only: ring the doorbell, or show a label at the top (see demo.ts). */
-    ctDemo?: { ring(): void; caption(title: string, detail?: string): void; sky(phase?: string, condition?: string): void };
+    ctDemo?: { ring(): void; caption(title: string, detail?: string): void; sky(phase?: string, condition?: string): void; door(id?: string, open?: boolean): void; range(): void };
   }
 }

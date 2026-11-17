@@ -38,13 +38,67 @@ const AuthDataSchema = v.object({
 
 type Listener = () => void;
 
+const SIGNED_OUT_KEY = 'ct.haSignedOut';
+
+/** "http://ha:8123/" and "http://HA:8123" are the same Home Assistant. */
+const sameHa = (a: string, b: string) => a.replace(/\/+$/, '').toLowerCase() === b.replace(/\/+$/, '').toLowerCase();
+
+/** Why the TV isn't signed in, kept so Settings can say what happened (and when). */
+function noteSignedOut(why: string): void {
+  console.warn(`[CalmTV] Not signed in to Home Assistant: ${why}`);
+
+  try {
+    localStorage.setItem(SIGNED_OUT_KEY, JSON.stringify({ why, at: Date.now() }));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+const SignedOutSchema = v.object({ why: v.string(), at: v.number() });
+
+/** The last reason the TV was found signed out, e.g. "Home Assistant refused the saved sign-in · Mon 10:42". */
+export function lastSignedOut(): string {
+  try {
+    const r = v.safeParse(SignedOutSchema, JSON.parse(localStorage.getItem(SIGNED_OUT_KEY) ?? 'null'));
+
+    if (!r.success) return '';
+    const at = new Date(r.output.at).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+
+    return `${r.output.why} · ${at}`;
+  } catch {
+    return '';
+  }
+}
+
+/** The saved sign-in, or null with the reason noted. */
 function loadTokens(): AuthData | null {
   try {
-    const saved = v.safeParse(AuthDataSchema, JSON.parse(localStorage.getItem(TOKENS_KEY) ?? 'null'));
+    const raw = localStorage.getItem(TOKENS_KEY);
 
-    // Tokens belong to one Home Assistant: forget them if the address was changed.
-    return saved.success && saved.output.hassUrl === settings.haUrl ? saved.output : null;
+    if (!raw) {
+      noteSignedOut('no saved sign-in on this TV');
+
+      return null;
+    }
+    const saved = v.safeParse(AuthDataSchema, JSON.parse(raw));
+
+    if (!saved.success) {
+      noteSignedOut('the saved sign-in couldn’t be read');
+
+      return null;
+    }
+
+    // Tokens belong to one Home Assistant: not used if the address was changed.
+    if (!sameHa(saved.output.hassUrl, settings.haUrl)) {
+      noteSignedOut(`the saved sign-in is for ${saved.output.hassUrl}, not ${settings.haUrl}`);
+
+      return null;
+    }
+
+    return saved.output;
   } catch {
+    noteSignedOut('the saved sign-in couldn’t be read');
+
     return null;
   }
 }
@@ -188,7 +242,7 @@ class HomeAssistant {
       conn.addEventListener('ready', () => this.connected(conn));
       conn.addEventListener('disconnected', () => this.setStatus('offline'));
       conn.addEventListener('reconnect-error', (_c, err) => {
-        if (err === ERR_INVALID_AUTH) this.lostAuth();
+        if (err === ERR_INVALID_AUTH) this.lostAuth('Home Assistant refused the saved sign-in while reconnecting');
       });
       subscribeEntities(conn, (ents) => {
         this.entities = ents;
@@ -206,7 +260,7 @@ class HomeAssistant {
 
       if (err === ERR_INVALID_AUTH || badCallback) {
         if (badCallback) console.warn('[CalmTV] Home Assistant sign-in callback failed', err);
-        this.lostAuth();
+        this.lostAuth(badCallback ? 'the sign-in page’s answer couldn’t be used' : 'Home Assistant refused the saved sign-in');
       } else {
         // ERR_CANNOT_CONNECT (HA or Tailscale down) or a network error: try again, backing off to 1 minute.
         if (err !== ERR_CANNOT_CONNECT) console.warn('HA connect failed', err);
@@ -223,8 +277,8 @@ class HomeAssistant {
   }
 
   /** The tokens were refused (e.g. the TV user was removed or signed out in HA). */
-  private lostAuth(): void {
-    console.warn('[CalmTV] Home Assistant refused the saved sign-in; signed out');
+  private lostAuth(why: string): void {
+    noteSignedOut(why);
     this.teardown();
     saveTokens(null);
     this.setStatus('signed-out');

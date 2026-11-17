@@ -20,6 +20,10 @@ import android.view.accessibility.AccessibilityEvent
  */
 class HomeButtonService : AccessibilityService() {
     private var doorbell: DoorbellOverlay? = null
+    private var doors: DoorPopups? = null
+    private var panel: SidePanelOverlay? = null
+    /** Keys pressed while the side panel was open, whose release the panel keeps too. */
+    private val panelKeys = mutableSetOf<Int>()
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -28,6 +32,8 @@ class HomeButtonService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         doorbell?.close()
+        doors?.close()
+        panel?.close()
         if (instance === this) instance = null
         return super.onUnbind(intent)
     }
@@ -41,6 +47,30 @@ class HomeButtonService : AccessibilityService() {
             doorbell = overlay
             overlay.show(MainActivity.pageUrl ?: MainActivity.BUNDLED_URL, look)
         }
+    }
+
+    /** A door pop-up in the corner over the current app (see DoorPopups). Safe to call from any thread. */
+    fun showDoor(id: String, name: String, left: Boolean, stay: Boolean) {
+        Handler(Looper.getMainLooper()).post {
+            val popups = doors ?: DoorPopups(this).also { doors = it }
+            popups.show(id, name, left, stay)
+        }
+    }
+
+    /** Takes away a door's pop-up that stays (see showDoor). */
+    fun hideDoor(id: String) {
+        Handler(Looper.getMainLooper()).post { doors?.hide(id) }
+    }
+
+    private fun toggleSidePanel() {
+        val open = panel
+        if (open != null) {
+            open.close()
+            return
+        }
+        val overlay = SidePanelOverlay(this) { panel = null }
+        panel = overlay
+        overlay.show(MainActivity.pageUrl ?: MainActivity.BUNDLED_URL)
     }
 
     /** Pauses whatever app is playing (Netflix, YouTube...) the same way a remote's pause button does. */
@@ -66,7 +96,26 @@ class HomeButtonService : AccessibilityService() {
             if (event.action == KeyEvent.ACTION_UP) bell.close()
             return true
         }
+        // ★ opens and closes the Home Assistant side panel (instead of Google's own side panel).
+        if (event.keyCode == KeyEvent.KEYCODE_MACRO_1) {
+            if (event.action == KeyEvent.ACTION_UP) toggleSidePanel()
+            return true
+        }
+        // While the side panel is open it gets the arrows, OK and Back; the show keeps the rest.
+        // A press that went to the panel keeps its release too, even when that press closed the
+        // panel: otherwise the app underneath sees Back let go and closes (e.g. the music panel).
+        val side = panel
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            if (side != null && side.key(event)) {
+                panelKeys.add(event.keyCode)
+                return true
+            }
+        } else if (event.action == KeyEvent.ACTION_UP && panelKeys.remove(event.keyCode)) {
+            side?.key(event)
+            return true
+        }
         if (event.keyCode == KeyEvent.KEYCODE_HOME && !Prefs.usingGoogleHome(this)) {
+            side?.close()
             if (event.action == KeyEvent.ACTION_UP) showCalmTv("home key")
             return true
         }

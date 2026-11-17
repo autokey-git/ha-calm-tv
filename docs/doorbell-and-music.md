@@ -166,6 +166,26 @@ To put the Music tile somewhere else in the dock, add it to `"apps"` where you w
 - **Library:** OK on a button opens its grid. OK on an artist, album or playlist opens it (an album
   or playlist starts with **Play all**). OK on a song or station plays it. Back goes up a level.
 
+### The whole queue (optional)
+
+Home Assistant tells the TV what's playing and what's next, not the whole queue. To see and jump
+through the whole queue, connect the TV to Music Assistant itself:
+
+1. In Music Assistant's web page, open your profile in Settings and create a long-lived token.
+2. On the TV: **Settings → Home Assistant → Music Assistant**. Enter Music Assistant's address (usually your Home Assistant machine on port
+   8095, for example `http://192.168.1.20:8095`), then the token.
+
+Typing a token with the remote is slow: paste it with the Google TV remote in the Google Home app
+on your phone, or over adb with `adb shell input text '<token>'` while the token box is selected.
+The address and token are kept on the TV only, never in `calm-tv.json`. Leave the address empty and
+press OK to turn it off.
+
+### Volume
+
+- The volume buttons under the controls turn every speaker in the group.
+- OK on a speaker picks it and turns its card into its own volume slider: ←/→ to change it, OK or
+  Back when done.
+
 ### If something's off
 
 - **A speaker says Unavailable**: it's the wrong entity (often the Sonos/Cast one instead of the
