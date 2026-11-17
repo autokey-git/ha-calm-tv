@@ -1,6 +1,7 @@
+import * as v from 'valibot';
 import type { App } from './types';
 import { icon } from './icons';
-import { installedPackages } from './native';
+import { installedApps, native } from './native';
 import { demoMode, haPath, settings } from './config';
 
 // The built-in dock lineup, used when calm-tv.json has no "apps", in order. Each `mark` is a brand SVG from src/icons/,
@@ -21,20 +22,128 @@ const lineup: App[] = [
 // Calm TV's own Settings, always last: off-screen until you scroll the dock to the end.
 const settingsTile: App = { name: 'Settings', mark: icon('settings'), kind: 'settings' };
 
-/** The dock: calm-tv.json's "apps" if it lists any, otherwise the lineup above. */
+/**
+ * Built-in icons by the package of the app they belong to, so an app chosen on the TV (Settings →
+ * Arrange dock → Choose apps), or listed without an "icon", still gets its brand mark.
+ */
+const PKG_ICONS: Record<string, string> = {
+  'com.google.android.youtube.tv': 'youtube',
+  'com.google.android.youtube.tvkids': 'youtubekids',
+  'com.google.android.youtube.tvmusic': 'youtubemusic',
+  'com.netflix.ninja': 'netflix',
+  'com.amazon.amazonvideo.livingroom': 'primevideo',
+  'com.disney.disneyplus': 'disneyplus',
+  'com.hulu.livingroomplus': 'hulu',
+  'com.apple.atve.androidtv.appletv': 'appletv',
+  'com.peacocktv.peacockandroid': 'peacock',
+  'com.google.android.videos': 'googletv',
+  'com.wbd.stream': 'hbomax',
+  'com.cbs.ott': 'paramountplus',
+  'com.crunchyroll.crunchyroid': 'crunchyroll',
+  'com.tubitv': 'tubi',
+  'tv.twitch.android.app': 'twitch',
+  'com.plexapp.android': 'plex',
+  'org.jellyfin.androidtv': 'jellyfin',
+  'tv.emby.embyatv': 'emby',
+  'org.xbmc.kodi': 'kodi',
+  'com.spotify.tv.android': 'spotify',
+  'com.aspiro.tidal': 'tidal',
+  'com.valvesoftware.steamlink': 'steam',
+  'com.nvidia.geforcenow': 'nvidia',
+  'io.homeassistant.companion.android': 'homeassistant',
+};
+
+/** The dock: calm-tv.json's "apps" if it lists any, otherwise the lineup above, with this TV's own choices. */
 export let apps: App[] = [];
 
-/** Call after loadConfig(). On the TV, apps that aren't installed are hidden; in a browser, all show. */
+/**
+ * Call after loadConfig(), and again after Choose apps changes the dock. On the TV, apps that aren't
+ * installed are hidden; in a browser, all show.
+ */
 export function loadApps(): void {
   const fromConfig = settings.config.apps
-    ?.filter((a) => a.package || a.open)
-    .map((a): App => (a.open === 'music' ? { ...musicTile, name: a.name, mark: a.icon ? markFor(a.name, a.icon) : musicTile.mark } : { name: a.name, pkg: a.package, mark: markFor(a.name, a.icon) }));
-  let list = fromConfig?.length ? fromConfig : lineup;
+    ?.filter((a) => a.package)
+    .map((a): App => ({ name: a.name, pkg: a.package, mark: markFor(a.name, a.icon, a.package) }));
 
-  // With "music" in calm-tv.json, the Music tile goes at the end, next to Settings, unless "apps" places it.
-  if (settings.config.music && !list.some((a) => a.kind === 'music')) list = [...list, musicTile];
-  const installed = installedPackages();
-  apps = [...savedOrder(installed ? list.filter((a) => !a.pkg || installed.has(a.pkg)) : list), settingsTile];
+  const listed = fromConfig?.length ? fromConfig : lineup;
+  const choice = readChoice();
+  // This TV's choices: apps taken off, and apps added (after the listed ones, in the order added).
+  const list = [
+    ...listed.filter((a) => !a.pkg || !choice.removed.includes(a.pkg)),
+    ...choice.added
+      .filter((x) => !listed.some((a) => a.pkg === x.pkg))
+      .map((x): App => ({ name: x.name, pkg: x.pkg, mark: markFor(x.name, undefined, x.pkg) })),
+  ];
+  const installed = installedApps();
+  const has = installed && new Set(installed.map((a) => a.pkg));
+  apps = [...savedOrder(has ? list.filter((a) => !a.pkg || has.has(a.pkg)) : list), settingsTile];
+}
+
+// ---------- your own apps (Settings → Arrange dock → Choose apps), kept on this TV ----------
+
+const CHOICE_KEY = demoMode ? 'calmtv.demo.dockChoice' : 'calmtv.dockChoice';
+
+/** Apps this TV added to the dock (with their names) or took off it (by package), against calm-tv.json. */
+const DockChoice = v.object({
+  added: v.fallback(v.array(v.object({ pkg: v.string(), name: v.string() })), []),
+  removed: v.fallback(v.array(v.string()), []),
+});
+type DockChoice = v.InferOutput<typeof DockChoice>;
+
+function readChoice(): DockChoice {
+  try {
+    const saved = v.safeParse(DockChoice, JSON.parse(localStorage.getItem(CHOICE_KEY) ?? '{}'));
+
+    // Copies: a fallback's [] is one shared array, and toggleDockApp changes these.
+    return saved.success ? { added: [...saved.output.added], removed: [...saved.output.removed] } : { added: [], removed: [] };
+  } catch {
+    return { added: [], removed: [] };
+  }
+}
+
+function writeChoice(c: DockChoice): void {
+  try {
+    if (!c.added.length && !c.removed.length) localStorage.removeItem(CHOICE_KEY);
+    else localStorage.setItem(CHOICE_KEY, JSON.stringify(c));
+  } catch { /* storage off: the choice lasts until the app restarts */ }
+}
+
+/** The apps this TV can open, for Choose apps: name, package, its mark, and whether it's on the dock. */
+export function dockChoices(): { pkg: string; name: string; label: string; mark: string; on: boolean }[] {
+  const on = new Set(apps.map((a) => a.pkg).filter(Boolean));
+
+  return (installedApps() ?? [])
+    // Without an icon, a row shows the name's first letter (the whole name won't fit).
+    .map((a) => ({ pkg: a.pkg, name: esc(a.label), label: a.label, mark: markFor(a.label.slice(0, 1), undefined, a.pkg), on: on.has(a.pkg) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Puts an app on the dock (at the end, before Settings) or takes it off, then rebuilds the dock. */
+export function toggleDockApp(pkg: string, name: string): void {
+  const c = readChoice();
+  const listed = (settings.config.apps?.filter((a) => a.package).map((a) => a.package) ?? []);
+  const base = listed.length ? listed : lineup.map((a) => a.pkg);
+  const onDock = apps.some((a) => a.pkg === pkg);
+
+  if (onDock) {
+    c.added = c.added.filter((x) => x.pkg !== pkg);
+
+    if (base.includes(pkg) && !c.removed.includes(pkg)) c.removed.push(pkg);
+  } else {
+    c.removed = c.removed.filter((p) => p !== pkg);
+
+    if (!base.includes(pkg)) c.added.push({ pkg, name });
+  }
+
+  writeChoice(c);
+  loadApps();
+}
+
+/** True if this TV changed which apps are on the dock. */
+export function hasDockChoice(): boolean {
+  const c = readChoice();
+
+  return c.added.length > 0 || c.removed.length > 0;
 }
 
 // ---------- your own order (Settings → Arrange dock), kept on this TV ----------
@@ -45,11 +154,14 @@ const ORDER_KEY = demoMode ? 'calmtv.demo.dockOrder' : 'calmtv.dockOrder';
 /** What identifies a tile in the saved order. */
 export const tileKey = (a: App) => a.pkg ?? a.kind ?? a.name;
 
+/** The saved order: tile keys, first to last. */
+const SavedOrder = v.array(v.string());
+
 function readOrder(): string[] {
   try {
-    const v: unknown = JSON.parse(localStorage.getItem(ORDER_KEY) ?? '[]');
+    const saved = v.safeParse(SavedOrder, JSON.parse(localStorage.getItem(ORDER_KEY) ?? '[]'));
 
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+    return saved.success ? saved.output : [];
   } catch {
     return [];
   }
@@ -60,7 +172,12 @@ function savedOrder(list: App[]): App[] {
   const order = readOrder();
 
   if (!order.length) return list;
-  const at = (a: App) => { const i = order.indexOf(tileKey(a)); return i < 0 ? order.length : i; };
+
+  const at = (a: App) => {
+    const i = order.indexOf(tileKey(a));
+
+    return i < 0 ? order.length : i;
+  };
 
   return list.map((a, i) => ({ a, i })).sort((x, y) => at(x.a) - at(y.a) || x.i - y.i).map((x) => x.a);
 }
@@ -72,15 +189,16 @@ export function saveDockOrder(): void {
   } catch { /* storage off: the order lasts until the app restarts */ }
 }
 
-/** Back to calm-tv.json's order. */
+/** Back to calm-tv.json's dock: its apps, in its order. */
 export function resetDockOrder(): void {
-  try { localStorage.removeItem(ORDER_KEY); } catch { /* nothing saved */ }
+  try {
+    localStorage.removeItem(ORDER_KEY);
+    localStorage.removeItem(CHOICE_KEY);
+  } catch { /* nothing saved */ }
 }
 
 export const hasDockOrder = () => readOrder().length > 0;
 
-/** Calm TV's Music panel (sections/music-panel.ts). */
-const musicTile: App = { name: 'Music', mark: icon('musicassistant'), kind: 'music' };
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -89,14 +207,36 @@ const isFile = (iconName: string) => iconName.includes('/') || /\.(svg|png|webp)
 
 /**
  * A tile's mark: a built-in icon by name, your own file (shown as a white silhouette, like the
- * built-in ones; an SVG loaded as an image can't run code), or the app's name.
+ * built-in ones; an SVG loaded as an image can't run code), or the app's name. Without an "icon",
+ * the built-in icon for its package, else (on the TV) the app's own icon in colour, else its name.
  */
-function markFor(name: string, iconName?: string): string {
-  if (!iconName) return textMark(name);
+function markFor(name: string, iconName?: string, pkg?: string): string {
+  if (!iconName) {
+    const builtIn = pkg ? PKG_ICONS[pkg] : undefined;
+
+    if (builtIn) return icon(builtIn);
+    const own = pkg ? appIcon(pkg) : '';
+
+    return own?.startsWith('data:image/') ? `<img class="mark-app" src="${own}" alt="">` : textMark(name);
+  }
 
   if (isFile(iconName)) return `<img class="mark-img" src="${esc(haPath(iconName))}" alt="">`;
 
   return icon(iconName) || textMark(name);
+}
+
+/** Android's icons, asked for once each (a PNG across the bridge). */
+const appIcons = new Map<string, string>();
+
+function appIcon(pkg: string): string {
+  let url = appIcons.get(pkg);
+
+  if (url === undefined) {
+    url = native?.appIcon?.(pkg) ?? '';
+    appIcons.set(pkg, url);
+  }
+
+  return url;
 }
 
 /** An app without an icon file shows its name instead. */

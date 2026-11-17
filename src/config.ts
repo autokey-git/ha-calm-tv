@@ -30,9 +30,20 @@ const DeviceSchema = v.object({
   operator: v.optional(EntityId),
   /** Lock: a keypad's battery sensor. */
   keypad: v.optional(EntityId),
-  /** Sensor: what OK opens/closes in the ★ side panel, e.g. the garage door's "cover.left_garage_door". */
-  control: v.optional(EntityId),
+  /** Sensor: what OK opens/closes in the ★ side panel, e.g. the garage door's "cover.left_garage_door". Only a cover. */
+  control: v.optional(v.pipe(EntityId, v.startsWith('cover.', 'should be a cover, like "cover.garage_door"'))),
+  /** Scene: a list of scenes to pick from, instead of a select entity (as rooms from Areas build it). */
+  scenes: v.optional(v.array(EntityId)),
 });
+
+/**
+ * How the album's colour shows behind the Music screen: not at all (the default: just the photo),
+ * a glow around the cover, the screen washed in it, or a solid colour in place of the photo (as in
+ * the Music panel). Settings steps through them in this order.
+ */
+export const MUSIC_BACKGROUNDS = ['none', 'glow', 'wash', 'solid'] as const;
+
+export type MusicBackground = (typeof MUSIC_BACKGROUNDS)[number];
 
 /** The screens, in their default order (↓ moves through them). */
 /** A background's versions for the times of day (see variants.ts). */
@@ -49,7 +60,7 @@ const PHASE_URLS = {
   map: SceneMapSchema,
 };
 
-export const SCREENS = ['apps', 'smarthome', 'calendar', 'weather'] as const;
+export const SCREENS = ['apps', 'smarthome', 'music', 'calendar', 'weather'] as const;
 
 export type ScreenName = (typeof SCREENS)[number];
 
@@ -81,22 +92,25 @@ const ConfigSchema = v.object({
     v.array(
       v.object({
         name: v.string(),
-        /** The Android TV app to open. Or leave it out and set `open: "music"` for Calm TV's Music panel. */
+        /** The Android TV app to open. */
         package: v.optional(v.string()),
-        open: v.optional(v.picklist(['music'], 'should be "music"')),
         icon: v.optional(v.string()),
       }),
     ),
   ),
   /**
-   * The Music panel (a Music tile in the dock): `players` are the speakers, as { name, entity }
-   * (default: every Music Assistant player), and `library` names the media browser's top folders
-   * that get a button (default: Music Assistant's Artists … Audiobooks).
+   * The Music screen and panel: `players` are the speakers, as { name, entity } (default: every
+   * Music Assistant player), `library` names the media browser's top folders that get a button
+   * (default: Music Assistant's Artists … Audiobooks), and `background` is how the album's colour
+   * shows behind the Music screen (default "none"; each TV can change it in Settings).
    */
   music: v.optional(
     v.object({
       players: v.optional(v.array(v.object({ name: v.string(), entity: EntityId }))),
       library: v.optional(v.array(v.string())),
+      background: v.optional(v.picklist(MUSIC_BACKGROUNDS, `should be one of ${MUSIC_BACKGROUNDS.join(', ')}`)),
+      /** The wave under the time on the Music screen (default true). */
+      wave: v.optional(v.boolean()),
     }),
   ),
   /** Weather entity for the Weather screen and the Smart Home "Outside" line. */
@@ -150,7 +164,16 @@ const ConfigSchema = v.object({
    * The screens to show, in order, e.g. ["apps", "smarthome", "weather"] for no Calendar. Apps is
    * always shown, and first (it holds Settings). Default: all four.
    */
-  screens: v.optional(v.array(v.picklist(SCREENS, `should be one of ${SCREENS.join(', ')}`))),
+  // A name this version doesn't know (a screen added in a newer one, or a typo) is skipped with a
+  // warning, not an error: one unknown word mustn't make the whole file unreadable, so an older TV
+  // or dashboard can still read a newer calm-tv.json.
+  screens: v.optional(v.pipe(v.array(v.string()), v.transform((names) => names.filter((n): n is ScreenName => {
+    const known = (SCREENS as readonly string[]).includes(n);
+
+    if (!known) console.warn(`calm-tv.json: "screens" has "${n}", which this version doesn't know; skipped`);
+
+    return known;
+  })))),
   /** Rooms in the Smart Home bar, in order. */
   rooms: v.optional(v.array(RoomSchema)),
   /** Look options. */
@@ -162,6 +185,8 @@ const ConfigSchema = v.object({
       videos: v.optional(v.boolean('should be true or false')),
       /** How screens change: "fade" (the default) or "instant" (no animation; lightest on the TV). */
       transitions: v.optional(v.picklist(['fade', 'instant'], 'should be "fade" or "instant"')),
+      /** After a few seconds without a key press, the screens' bars fade and only the essentials stay (default true). */
+      fade: v.optional(v.boolean('should be true or false')),
     }),
   ),
   /** Extra backgrounds, e.g. files in Home Assistant's www folder ("/local/beach.jpg"). */
@@ -195,7 +220,22 @@ const NativeConfigResult = v.object({
  */
 export const demoMode = import.meta.env.VITE_DEMO_SITE === '1' || new URLSearchParams(location.search).has('demo');
 
+/**
+ * Dashboard mode (index.html?dash): for a touch screen at arm's length, such as a docked tablet. A tab
+ * bar under the screens replaces the Apps screen and the remote's arrows; everything can be tapped.
+ */
+export const dashboardMode = new URLSearchParams(location.search).has('dash');
+
+/** True when this page is served by Home Assistant itself, from its www folder (/local/…). */
+const servedByHa = !import.meta.env.DEV && location.pathname.startsWith('/local/');
+
 const CACHE_KEY = 'ct.config';
+/**
+ * The copy of the setup kept in Home Assistant (see config-store.ts), as last received: it's
+ * used from the start, before Home Assistant answers. Shared with the doorbell window and the ★
+ * panel, which are pages of the same app.
+ */
+export const STORED_KEY = 'ct.configStored';
 const HA_URL_KEY = 'ct.haUrl';
 
 export const settings = {
@@ -203,6 +243,8 @@ export const settings = {
   config: v.parse(ConfigSchema, {}),
   /** Where it came from: "Home Assistant", "this TV", "this project folder", "last saved copy", or "". */
   source: '',
+  /** True when it's the copy kept in Home Assistant, not a calm-tv.json file. */
+  stored: false,
   /** Why the newest copy couldn't be used, if it couldn't. */
   error: '',
   /** Home Assistant's address, e.g. "http://192.168.1.20:8123" ("" until it's set up). */
@@ -218,9 +260,13 @@ const devHaUrl = import.meta.env.DEV ? import.meta.env.VITE_HA_URL ?? '' : '';
 /** Home Assistant's address: set on the TV (Settings or adb), or VITE_HA_URL / the saved one in a browser. */
 function readHaUrl(): string {
   if (native?.getHaUrl) return native.getHaUrl();
+
   // The doorbell window and the ★ side panel over other apps have their own, smaller bridges.
   if (window.CalmTvDoorbell?.getHaUrl) return window.CalmTvDoorbell.getHaUrl();
   if (window.CalmTvPanel?.getHaUrl) return window.CalmTvPanel.getHaUrl();
+
+  // Served from Home Assistant's www folder: Home Assistant is this page's own server.
+  if (servedByHa) return location.origin;
 
   try {
     return devHaUrl || localStorage.getItem(HA_URL_KEY) || '';
@@ -278,9 +324,10 @@ export function decodeConfig(text: string): CalmTvConfig {
   throw new Error(`${where(first)}: ${first.message}`);
 }
 
-async function fetchProjectFile(): Promise<string> {
+/** calm-tv.json from `url`: the project folder in a browser, or Home Assistant's www folder. */
+async function fetchConfigFile(url: string): Promise<string> {
   try {
-    const r = await fetch('calm-tv.json', { cache: 'no-store' });
+    const r = await fetch(url, { cache: 'no-store' });
 
     // The dev server answers unknown paths with the page itself; only take real JSON.
     if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) return await r.text();
@@ -291,11 +338,20 @@ async function fetchProjectFile(): Promise<string> {
   return '';
 }
 
-/** Loads Home Assistant's address and calm-tv.json. Call once, before the screens are built. */
-export async function loadConfig(): Promise<void> {
-  settings.haUrl = readHaUrl();
+/** The setup kept in Home Assistant, as last received ("" if none). */
+export function storedConfigText(): string {
+  try {
+    return localStorage.getItem(STORED_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/** calm-tv.json, wherever this page finds it: the TV app, Home Assistant's www folder, or the project folder. */
+export async function readConfigFile(): Promise<{ text: string; source: string; error: string }> {
   let text = '';
   let source = '';
+  let error = '';
 
   const nativeLoad = native?.loadConfig ? () => native!.loadConfig!()
     : window.CalmTvDoorbell?.loadConfig ? () => window.CalmTvDoorbell!.loadConfig!()
@@ -315,16 +371,50 @@ export async function loadConfig(): Promise<void> {
     if (r.success) {
       text = r.output.text;
       source = r.output.source;
-      settings.error = r.output.error;
+      error = r.output.error;
     } else {
-      settings.error = 'the TV app sent an unreadable answer';
+      error = 'the TV app sent an unreadable answer';
     }
+  } else if (servedByHa) {
+    text = await fetchConfigFile('/local/calm-tv.json');
+    source = text ? 'Home Assistant' : '';
+
+    if (!text) error = 'no calm-tv.json in Home Assistant’s www folder';
   } else {
-    text = await fetchProjectFile();
+    text = await fetchConfigFile('calm-tv.json');
     source = text ? 'this project folder' : '';
 
-    if (!text) settings.error = 'no calm-tv.json in the project folder';
+    if (!text) error = 'no calm-tv.json in the project folder';
   }
+
+  return { text, source, error };
+}
+
+/**
+ * Loads Home Assistant's address and the home's setup. Call once, before the screens are built.
+ * The copy kept in Home Assistant comes first, then calm-tv.json, then the last copy that worked.
+ */
+export async function loadConfig(): Promise<void> {
+  settings.haUrl = readHaUrl();
+  const stored = storedConfigText();
+
+  if (stored) {
+    try {
+      settings.config = decodeConfig(stored);
+      settings.source = 'Home Assistant';
+      settings.stored = true;
+
+      return;
+    } catch (e) {
+      // Not expected (it's checked before it's kept), but never a blank screen: use the file.
+      settings.error = `the copy in Home Assistant: ${e instanceof Error ? e.message : 'unreadable'}`;
+    }
+  }
+
+  const file = await readConfigFile();
+  const { text, source } = file;
+
+  if (!settings.error) settings.error = file.error;
 
   if (text) {
     try {
@@ -357,11 +447,19 @@ export async function loadConfig(): Promise<void> {
   }
 }
 
-/** The screens to show, in order: calm-tv.json's "screens" (or all four), always starting with Apps. */
+/**
+ * The screens to show, in order: calm-tv.json's "screens" (or all four), always starting with Apps.
+ * The dashboard has no Apps screen: a web page can't open other apps, and its tab bar holds Music and
+ * Settings instead.
+ */
 export function screenOrder(): ScreenName[] {
   const listed = settings.config.screens ?? SCREENS;
+  // The Music screen needs "music" in calm-tv.json (its speakers).
+  const rest = [...new Set(listed.filter((s) => s !== 'apps' && (s !== 'music' || !!settings.config.music)))];
 
-  return ['apps', ...new Set(listed.filter((s) => s !== 'apps'))];
+  if (dashboardMode) return rest.length ? rest : ['smarthome'];
+
+  return ['apps', ...rest];
 }
 
 /** A path on Home Assistant ("/local/x.jpg") as a full address; full addresses are kept. */

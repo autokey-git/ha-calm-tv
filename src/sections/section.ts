@@ -13,4 +13,6 @@ export interface Section {
   activate(i: number): void;
   /** Optional: called when this section becomes the active one. */
   onEnter?(): void;
+  /** Optional: the item focused when the screen is first shown (default 0). */
+  readonly defaultItem?: number;
 }

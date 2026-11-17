@@ -24,9 +24,10 @@ src/wallpapers/*
 !src/wallpapers/00-mountain-lake-sunset.jpg
 !src/wallpapers/01-stylized-forest-brook.jpg
 
-# Demo mode's placeholder camera view (made for the project).
+# Demo mode's placeholder camera view and album cover (made for the project).
 src/demo-media/*
 !src/demo-media/doorbell-camera.mp4
+!src/demo-media/album-echoes.jpg
 
 # Local tools and design drafts
 .claude/

@@ -30,6 +30,25 @@ class NativeBridge(private val activity: Activity) {
         return out.toString()
     }
 
+    /**
+     * An installed app's own icon, as Android shows it in its app list: a 128 px PNG data URL, or ""
+     * if there's no such app. For dock tiles without one of Calm TV's built-in icons.
+     */
+    @JavascriptInterface
+    fun appIcon(pkg: String): String = try {
+        val drawable = pm.getApplicationIcon(pkg)
+        val size = 128
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        drawable.setBounds(0, 0, size, size)
+        drawable.draw(android.graphics.Canvas(bitmap))
+        val out = java.io.ByteArrayOutputStream()
+        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+        bitmap.recycle()
+        "data:image/png;base64," + android.util.Base64.encodeToString(out.toByteArray(), android.util.Base64.NO_WRAP)
+    } catch (e: PackageManager.NameNotFoundException) {
+        ""
+    }
+
     /** Opens an installed app. Returns false if it isn't installed. */
     @JavascriptInterface
     fun launch(pkg: String): Boolean {
@@ -48,6 +67,35 @@ class NativeBridge(private val activity: Activity) {
     fun openSettings() {
         activity.runOnUiThread {
             activity.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+    }
+
+    /**
+     * Whether Calm TV's Home button service (an accessibility service) is on. It catches Home, and
+     * shows the doorbell window, door pop-ups and the ★ panel over other apps. Android switches it off
+     * whenever the app is updated, so the page checks and says so.
+     */
+    @JavascriptInterface
+    fun homeServiceOn(): Boolean {
+        // Asks Android which services are really on. The "enabled services" setting can still list
+        // ours after an update has switched accessibility off, so it isn't enough on its own.
+        val am = activity.getSystemService(android.view.accessibility.AccessibilityManager::class.java) ?: return false
+        if (!am.isEnabled) return false
+        val me = android.content.ComponentName(activity, HomeButtonService::class.java)
+        return am.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+            .any { it.resolveInfo?.serviceInfo?.let { s -> s.packageName == me.packageName && s.name == me.className } == true }
+    }
+
+    /** When this copy of the app was installed or last updated (ms), to tell an update apart. */
+    @JavascriptInterface
+    fun installedAt(): Double =
+        activity.packageManager.getPackageInfo(activity.packageName, 0).lastUpdateTime.toDouble()
+
+    /** Opens the TV's accessibility settings, where the Home button service is switched on. */
+    @JavascriptInterface
+    fun openAccessibilitySettings() {
+        activity.runOnUiThread {
+            activity.startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
     }
 
@@ -115,12 +163,6 @@ class NativeBridge(private val activity: Activity) {
     @JavascriptInterface
     fun hideDoor(id: String) {
         HomeButtonService.instance?.hideDoor(id)
-    }
-
-    /** While on, the remote's volume keys go to the page (the Music panel) instead of the TV. */
-    @JavascriptInterface
-    fun setVolumeKeys(on: Boolean) {
-        MainActivity.volumeKeysToPage = on
     }
 
     /** Home Assistant's address, or "" before it's set up. */

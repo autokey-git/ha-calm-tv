@@ -9,7 +9,7 @@ export interface App {
   /** Android TV package name the tile opens, e.g. com.netflix.ninja. */
   pkg?: string;
   /** 'settings' and 'music' mark Calm TV's own tiles (they open its panels, not an app). */
-  kind?: 'settings' | 'music';
+  kind?: 'settings';
 }
 
 export interface Wallpaper {
@@ -52,6 +52,13 @@ export interface Device {
   maxTemp?: number;
   /** Scene: the choices HA offers, and the last one picked (Hue doesn't report the active scene). */
   options?: string[];
+  /**
+   * Scene picker built from an Area's scene entities (rooms from Areas, areas.ts), instead of one
+   * select entity: picking turns that scene on. `options` are their names, in the same order.
+   */
+  scenes?: string[];
+  /** The room it's in: scene names are shown without it ("Office Bright" → "Bright"). */
+  room?: string;
   /** Sensor: an occupancy sensor (Someone there / Clear) rather than a door. */
   occupancy?: boolean;
   picked?: string;

@@ -3,6 +3,8 @@ import { cap } from '../home-data';
 import { ha } from '../ha';
 import { playCamera, type CameraStream } from '../camera-stream';
 import { child, find } from '../dom';
+import { FocusGroup } from '../focus';
+import { hint } from '../hints';
 
 const wrap = (inner: string) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
@@ -74,13 +76,17 @@ export class ZoneDetail {
   private zone: Zone | null = null;
   private columns: Device[][] = [];
   private colEls: HTMLElement[][] = [];
-  private focus = { onClose: false, col: 0, row: 0 };
 
   private controlDevice: Device | null = null;
+  /** Where the open control's device sits in the grid (to repaint its row when it closes). */
+  private controlAt = { col: 0, row: 0 };
   private sendTimer = 0;
   private camTimer = 0;
   private camera: CameraStream | null = null;
-  private sceneIndex = 0;
+  /** Remote, touch and mouse (see focus.ts): the device grid and the close button. */
+  private nav: FocusGroup;
+  /** The same for an open control (its scenes, or − and +). */
+  private ctlNav: FocusGroup;
 
   constructor(mount: HTMLElement, private onClosed: () => void) {
     this.el = document.createElement('div');
@@ -90,7 +96,7 @@ export class ZoneDetail {
       <div class="detail-panel">
         <div class="detail-head">
           <div class="detail-title"></div>
-          <button class="detail-close" aria-label="Close">${wrap('<path d="M6 6l12 12M18 6L6 18"/>')}</button>
+          <button class="detail-close" data-focus="close" aria-label="Close">${wrap('<path d="M6 6l12 12M18 6L6 18"/>')}</button>
         </div>
         <div class="detail-cols"></div>
         <div class="detail-foot"></div>
@@ -107,6 +113,12 @@ export class ZoneDetail {
     this.el.querySelector('.detail-scrim')!.addEventListener('click', () => this.close());
     this.controlEl.addEventListener('click', (e) => {
       if (e.target === this.controlEl) this.closeControl();
+    });
+
+    this.nav = new FocusGroup(child(this.el, '.detail-panel'), { onBack: () => this.close() });
+    this.ctlNav = new FocusGroup(this.controlEl, {
+      onBack: () => this.closeControl(),
+      onKey: (e) => this.controlKey(e),
     });
   }
 
@@ -129,9 +141,9 @@ export class ZoneDetail {
       const els: HTMLElement[] = [];
       g.devices.forEach((d, ri) => {
         const row = document.createElement('button');
+        row.dataset.focus = `device-${ci}-${ri}`;
         this.paintRow(row, d);
-        row.addEventListener('mouseenter', () => { this.focus = { onClose: false, col: ci, row: ri }; this.render(); });
-        row.addEventListener('click', () => { this.focus = { onClose: false, col: ci, row: ri }; this.render(); this.activate(); });
+        row.addEventListener('click', () => this.activate(ci, ri));
         list.appendChild(row);
         els.push(row);
       });
@@ -142,10 +154,9 @@ export class ZoneDetail {
     });
     this.paintFooter();
 
-    this.focus = { onClose: false, col: 0, row: 0 };
     this.open = true;
     this.el.classList.add('open');
-    this.render();
+    this.nav.focus('device-0-0');
   }
 
   close(): void {
@@ -186,81 +197,25 @@ export class ZoneDetail {
       (hasControl(d) ? `<div class="dchev">${wrap('<path d="M9 6l6 6-6 6"/>')}</div>` : '');
   }
 
+  /** Repainting a row resets its classes; this puts the focus back. */
   private render(): void {
-    this.closeEl.classList.toggle('focus', this.focus.onClose);
-    this.colEls.forEach((col) => col.forEach((el) => el.classList.remove('focus')));
-
-    if (!this.focus.onClose) {
-      const col = this.colEls[this.focus.col] ?? [];
-      this.focus.row = Math.max(0, Math.min(this.focus.row, col.length - 1));
-      col[this.focus.row]?.classList.add('focus');
-    }
+    this.nav.paint();
   }
 
   // ---------- input ----------
   handleKey(e: KeyboardEvent): void {
-    if (this.controlDevice) {
-      this.controlKey(e);
-
-      return;
-    }
-
-    const k = e.key;
-
-    if (k === 'Escape' || k === 'Backspace') {
-      e.preventDefault();
-      this.close();
-
-      return;
-    }
-
-    if (k === 'Enter' || k === ' ') {
-      e.preventDefault();
-      this.activate();
-
-      return;
-    }
-
-    if (!k.startsWith('Arrow')) return;
-    e.preventDefault();
-    const f = this.focus;
-
-    if (f.onClose) {
-      if (k === 'ArrowDown') {
-        f.onClose = false;
-        f.row = 0;
-      }
-    } else if (k === 'ArrowUp') {
-      if (f.row > 0) f.row--; else f.onClose = true;
-    } else if (k === 'ArrowDown') {
-      if (f.row < this.colEls[f.col].length - 1) f.row++;
-    } else if (k === 'ArrowLeft') {
-      if (f.col > 0) {
-        f.col--;
-        f.row = Math.min(f.row, this.colEls[f.col].length - 1);
-      }
-    } else if (k === 'ArrowRight') {
-      if (f.col < this.colEls.length - 1) {
-        f.col++;
-        f.row = Math.min(f.row, this.colEls[f.col].length - 1);
-      }
-    }
-
-    this.render();
+    if (this.controlDevice) this.ctlNav.handleKey(e);
+    else this.nav.handleKey(e);
   }
 
-  private activate(): void {
-    if (this.focus.onClose) {
-      this.close();
-
-      return;
-    }
-
-    const d = this.columns[this.focus.col]?.[this.focus.row];
+  /** A device's row was chosen (OK, a tap or a click): switch it, or open its control. */
+  private activate(ci: number, ri: number): void {
+    const d = this.columns[ci]?.[ri];
 
     if (!d || d.unavailable) return;
 
     if (hasControl(d)) {
+      this.controlAt = { col: ci, row: ri };
       this.openControl(d);
 
       return;
@@ -280,7 +235,7 @@ export class ZoneDetail {
     }
 
     if (d.type !== 'cover') d.status = d.on ? 'On' : '';
-    this.paintRow(this.colEls[this.focus.col][this.focus.row], d);
+    this.paintRow(this.colEls[ci][ri], d);
     this.render();
   }
 
@@ -302,9 +257,9 @@ export class ZoneDetail {
     this.controlEl.classList.remove('open');
     this.controlEl.hidden = true;
     this.controlEl.innerHTML = '';
-    const d2 = this.columns[this.focus.col]?.[this.focus.row];
+    const { col, row } = this.controlAt;
 
-    if (d2 === d) this.paintRow(this.colEls[this.focus.col][this.focus.row], d);
+    if (this.columns[col]?.[row] === d) this.paintRow(this.colEls[col][row], d);
     this.render();
   }
 
@@ -317,30 +272,29 @@ export class ZoneDetail {
       this.controlEl.innerHTML = `
         <div class="ctl-card ctl-climate">
           <div class="ctl-name">${d.name}</div>
-          <div class="ctl-temp"><span class="ctl-set"></span><span class="deg"></span></div>
+          <div class="ctl-temp"><button class="ctl-step" data-step="-1" aria-label="Cooler">−</button><span class="ctl-set"></span><span class="deg"></span><button class="ctl-step" data-step="1" aria-label="Warmer">+</button></div>
           <div class="ctl-sub"></div>
-          <div class="ctl-hint">▲ ▼ to adjust · Back to close</div>
+          <div class="ctl-hint">${hint('thermostat')}</div>
         </div>`;
+      this.controlEl.querySelectorAll<HTMLElement>('.ctl-step').forEach((b) =>
+        b.addEventListener('click', () => this.stepClimate(Number(b.dataset.step))),
+      );
       this.updateClimateControl();
     } else if (d.type === 'scene') {
       const opts = d.options ?? [];
-      this.sceneIndex = Math.max(0, opts.indexOf(d.picked ?? ''));
       this.controlEl.innerHTML = `
         <div class="ctl-card ctl-scene">
           <div class="ctl-name">${this.zone?.name ?? ''} scene</div>
-          <div class="scene-list">${opts.map((o) => `<div class="scene-opt">${o}</div>`).join('')}</div>
-          <div class="ctl-hint">▲ ▼ to choose · OK to set · Back to close</div>
+          <div class="scene-list">${opts.map((o, i) => `<div class="scene-opt${o === d.picked ? ' picked' : ''}" data-focus="scene-${i}">${o}</div>`).join('')}</div>
+          <div class="ctl-hint">${hint('scenes')}</div>
         </div>`;
-      this.controlEl.querySelectorAll('.scene-opt').forEach((el, i) => {
-        el.addEventListener('mouseenter', () => { this.sceneIndex = i; this.updateSceneControl(); });
-        el.addEventListener('click', () => { this.sceneIndex = i; this.pickScene(); });
-      });
-      this.updateSceneControl();
+      this.controlEl.querySelectorAll('.scene-opt').forEach((el, i) => el.addEventListener('click', () => this.pickScene(i)));
+      this.ctlNav.focus(`scene-${Math.max(0, opts.indexOf(d.picked ?? ''))}`);
     } else if (d.type === 'camera') {
       this.controlEl.innerHTML = `
         <div class="ctl-card ctl-camera">
           <div class="cam-feed"><video class="cam-img" muted autoplay playsinline></video><div class="cam-msg">Connecting…</div><div class="cam-live"><span class="dot"></span>LIVE</div><div class="cam-name">${d.name}</div></div>
-          <div class="ctl-hint">Back to close</div>
+          <div class="ctl-hint">${hint('closeControl')}</div>
         </div>`;
       this.startCamera(d);
     } else {
@@ -350,9 +304,10 @@ export class ZoneDetail {
           <div class="ctl-name">${d.name}</div>
           <div class="ctl-state"></div>
           <div class="ctl-bar"><div class="ctl-fill"></div></div>
-          <div class="ctl-sub">◀ ▶ brightness · OK on/off</div>
-          <div class="ctl-hint">Back to close</div>
+          <div class="ctl-sub">${hint('dimmer')}</div>
+          <div class="ctl-hint">${hint('closeControl')}</div>
         </div>`;
+      this.wireLightTouch(d);
       this.updateLightControl();
     }
   }
@@ -382,23 +337,19 @@ export class ZoneDetail {
     this.camTimer = window.setTimeout(() => fail('Still connecting… cameras can take a few seconds'), 8000);
   }
 
-  private updateSceneControl(): void {
+  private pickScene(i: number): void {
     const d = this.controlDevice;
-    this.controlEl.querySelectorAll('.scene-opt').forEach((el, i) => {
-      el.classList.toggle('focus', i === this.sceneIndex);
-      el.classList.toggle('picked', el.textContent === d?.picked);
-    });
-    this.controlEl.querySelectorAll('.scene-opt')[this.sceneIndex]?.scrollIntoView({ block: 'nearest' });
-  }
-
-  private pickScene(): void {
-    const d = this.controlDevice;
-    const option = d?.options?.[this.sceneIndex];
+    const option = d?.options?.[i];
 
     if (!d || !option) return;
     d.picked = option;
     d.status = option;
-    ha.call('select', 'select_option', { entity_id: d.entity, option });
+
+    // A room built from an Area: its scenes are scene entities, turned on directly.
+    if (d.scenes?.[i]) {
+      d.holdUntil = Date.now() + HOLD_MS;
+      ha.call('scene', 'turn_on', { entity_id: d.scenes[i] });
+    } else ha.call('select', 'select_option', { entity_id: d.entity, option });
     this.closeControl();
   }
 
@@ -446,64 +397,25 @@ export class ZoneDetail {
     p?.();
   }
 
-  private controlKey(e: KeyboardEvent): void {
+  /**
+   * Keys an open control handles itself: on the thermostat and a dimmer the arrows change the value
+   * instead of moving the focus, and OK sets or switches. Returns false for the rest (Back, and
+   * everything in the scene list), which the shared layer handles.
+   */
+  private controlKey(e: KeyboardEvent): boolean {
     const d = this.controlDevice;
-
-    if (!d) return;
     const k = e.key;
 
-    if (k === 'Escape' || k === 'Backspace') {
-      e.preventDefault();
-      this.closeControl();
-
-      return;
-    }
+    if (!d || d.type === 'scene' || k === 'Escape' || k === 'Backspace') return false;
 
     if (d.type === 'climate') {
-      const lo = d.minTemp ?? 50, hi = d.maxTemp ?? 90;
-
-      if (k === 'ArrowUp' || k === 'ArrowRight') {
-        e.preventDefault();
-        d.setpoint = Math.min(hi, (d.setpoint ?? 68) + 1);
-      }
-      else if (k === 'ArrowDown' || k === 'ArrowLeft') {
-        e.preventDefault();
-        d.setpoint = Math.max(lo, (d.setpoint ?? 68) - 1);
-      }
-      else if (k === 'Enter') {
-        e.preventDefault();
-        this.closeControl();
-
-        return;
-      }
-      else return;
-      const temperature = d.setpoint;
-      this.pending = () => ha.call('climate', 'set_temperature', { entity_id: d.entity, temperature });
-      this.queueSend(900);
-      d.status = `${d.setpoint}° · ${cap(d.mode)}`;
-      this.updateClimateControl();
-    } else if (d.type === 'scene') {
-      const n = d.options?.length ?? 0;
-
-      if (k === 'ArrowUp' || k === 'ArrowLeft') {
-        e.preventDefault();
-        this.sceneIndex = Math.max(0, this.sceneIndex - 1);
-        this.updateSceneControl();
-      }
-      else if (k === 'ArrowDown' || k === 'ArrowRight') {
-        e.preventDefault();
-        this.sceneIndex = Math.min(n - 1, this.sceneIndex + 1);
-        this.updateSceneControl();
-      }
-      else if (k === 'Enter' || k === ' ') {
-        e.preventDefault();
-        this.pickScene();
-      }
+      if (k === 'ArrowUp' || k === 'ArrowRight') this.stepClimate(1);
+      else if (k === 'ArrowDown' || k === 'ArrowLeft') this.stepClimate(-1);
+      else if (k === 'Enter') this.closeControl();
+      else return false;
     } else if (d.type === 'camera') {
-      if (k === 'Enter') {
-        e.preventDefault();
-        this.closeControl();
-      }
+      if (k !== 'Enter') return false;
+      this.closeControl();
     } else {
       // dimmable light
       let toggle = false;
@@ -535,15 +447,61 @@ export class ZoneDetail {
         d.on = !d.on;
         toggle = true;
       }
-      else return;
-      const on = d.on, pct = d.brightness ?? 100;
-      this.pending = () =>
-        on
-          ? ha.call('light', 'turn_on', toggle ? { entity_id: d.entity } : { entity_id: d.entity, brightness_pct: pct })
-          : ha.call('light', 'turn_off', { entity_id: d.entity });
-      this.queueSend(toggle ? 0 : 350);
-      d.status = d.on ? `On · ${pct}%` : '';
-      this.updateLightControl();
+      else return false;
+      this.sendLight(d, toggle);
     }
+
+    e.preventDefault();
+
+    return true;
+  }
+
+  /** The thermostat's set point up or down a degree, sent once the presses stop. */
+  private stepClimate(delta: number): void {
+    const d = this.controlDevice;
+
+    if (d?.type !== 'climate') return;
+    const lo = d.minTemp ?? 50, hi = d.maxTemp ?? 90;
+    d.setpoint = Math.max(lo, Math.min(hi, (d.setpoint ?? 68) + delta));
+    const temperature = d.setpoint;
+    this.pending = () => ha.call('climate', 'set_temperature', { entity_id: d.entity, temperature });
+    this.queueSend(900);
+    d.status = `${d.setpoint}° · ${cap(d.mode)}`;
+    this.updateClimateControl();
+  }
+
+  /** Sends the light's new state (`d.on`, `d.brightness`); a plain toggle keeps HA's own brightness. */
+  private sendLight(d: Device, toggle: boolean): void {
+    const on = d.on, pct = d.brightness ?? 100;
+    this.pending = () =>
+      on
+        ? ha.call('light', 'turn_on', toggle ? { entity_id: d.entity } : { entity_id: d.entity, brightness_pct: pct })
+        : ha.call('light', 'turn_off', { entity_id: d.entity });
+    this.queueSend(toggle ? 0 : 350);
+    d.status = d.on ? `On · ${pct}%` : '';
+    this.updateLightControl();
+  }
+
+  /** Touch and mouse on the dimmer: drag along the bar to set the brightness; tap the name to switch. */
+  private wireLightTouch(d: Device): void {
+    const bar = child(this.controlEl, '.ctl-bar');
+
+    const setFrom = (e: PointerEvent) => {
+      const r = bar.getBoundingClientRect();
+      const pct = Math.round((Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 100) / 5) * 5;
+      d.on = pct > 0;
+      d.brightness = Math.max(pct, 5);
+      this.sendLight(d, false);
+    };
+
+    bar.addEventListener('pointerdown', (e) => {
+      bar.setPointerCapture(e.pointerId);
+      setFrom(e);
+    });
+    bar.addEventListener('pointermove', (e) => { if (bar.hasPointerCapture(e.pointerId)) setFrom(e); });
+    child(this.controlEl, '.ctl-name').addEventListener('click', () => {
+      d.on = !d.on;
+      this.sendLight(d, true);
+    });
   }
 }

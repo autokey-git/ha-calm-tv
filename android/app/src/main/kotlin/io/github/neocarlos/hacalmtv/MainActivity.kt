@@ -109,7 +109,6 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         inFront = false
-        volumeKeysToPage = false
         // Stop a video background while another app or the screensaver is in front.
         js("window.dispatchEvent(new Event('ct-pause'))")
     }
@@ -119,14 +118,6 @@ class MainActivity : Activity() {
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_UP) {
                 js("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
-            }
-            return true
-        }
-        // While the Music panel is open, volume keys turn the speakers' group instead of the TV.
-        if (volumeKeysToPage && (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
-            if (event.action == KeyEvent.ACTION_DOWN) {
-                val dir = if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) "up" else "down"
-                js("window.dispatchEvent(new CustomEvent('ct-volume',{detail:'$dir'}))")
             }
             return true
         }
@@ -200,36 +191,77 @@ class MainActivity : Activity() {
         return startUrl.buildUpon().clearQuery().encodedQuery(if (extra.isEmpty()) "demo" else "demo&$extra").build().toString()
     }
 
-    /** Your Home Assistant (as set up on this TV), for its sign-in page. */
     /**
-     * Album art handed to the page as if it were its own (/calmtv-art?u=...), so the Music panel
-     * can read the cover's colours for its background; a page can't read the pixels of a picture
-     * from another address. The cover can be on Home Assistant or on Music Assistant's own server,
-     * so any http(s) address is fetched, and only a picture is passed on. Only Calm TV's own page
-     * can ask. (WebView asks on a background thread, so the download doesn't hold up the page.)
+     * Album art handed to the page as if it were its own (/calmtv-art?u=...), so the page can read
+     * the cover's colours; a page can't read the pixels of a picture from another address. Only Calm
+     * TV's own page can ask, and only for covers where they're found: your Home Assistant's machine
+     * (any port, so Music Assistant beside it too), or https on the public internet (streaming
+     * services' covers). Nothing else on the network: no plain http elsewhere, no private addresses,
+     * no redirects. Only a picture, of at most MAX_ART bytes, is passed on. (WebView asks on a
+     * background thread, so the download doesn't hold up the page.)
      */
     private fun albumArt(url: Uri): WebResourceResponse? {
         if (url.path != "/calmtv-art" || !sameOrigin(url, startUrl)) return null
         val target = url.getQueryParameter("u")?.let(Uri::parse) ?: return null
-        if (target.scheme != "http" && target.scheme != "https") return WebResourceResponse("text/plain", null, 403, "Forbidden", emptyMap(), null)
+        if (!artAllowed(target)) {
+            Log.w(TAG, "Album art: not fetching from ${target.host}")
+            return WebResourceResponse("text/plain", null, 403, "Forbidden", emptyMap(), null)
+        }
         return try {
             val conn = java.net.URL(target.toString()).openConnection() as java.net.HttpURLConnection
-            conn.connectTimeout = 5000
-            conn.readTimeout = 10000
+            conn.instanceFollowRedirects = false
+            conn.connectTimeout = 3000
+            conn.readTimeout = 6000
             val type = conn.contentType?.substringBefore(';')?.trim() ?: ""
-            if (conn.responseCode != 200 || !type.startsWith("image/")) {
-                Log.w(TAG, "Album art: ${conn.responseCode} $type from ${target.host}")
+            val length = conn.contentLengthLong
+            if (conn.responseCode != 200 || !type.startsWith("image/") || length > MAX_ART) {
+                Log.w(TAG, "Album art: ${conn.responseCode} $type ($length bytes) from ${target.host}")
                 conn.disconnect()
-                WebResourceResponse("text/plain", null, 404, "Not Found", emptyMap(), null)
-            } else {
-                WebResourceResponse(type, null, conn.inputStream)
+                return WebResourceResponse("text/plain", null, 404, "Not Found", emptyMap(), null)
             }
+            // Read it all here (it's small), so a server that sends more than it said can't run on.
+            val bytes = conn.inputStream.use { input ->
+                val out = java.io.ByteArrayOutputStream()
+                val buf = ByteArray(16 * 1024)
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    out.write(buf, 0, n)
+                    if (out.size() > MAX_ART) throw java.io.IOException("larger than $MAX_ART bytes")
+                }
+                out.toByteArray()
+            }
+            WebResourceResponse(type, null, java.io.ByteArrayInputStream(bytes))
         } catch (e: java.io.IOException) {
-            Log.w(TAG, "Album art: ${e.message}")
+            Log.w(TAG, "Album art: ${e.message} (${target.host})")
             WebResourceResponse("text/plain", null, 404, "Not Found", emptyMap(), null)
         }
     }
 
+    /** Where album art may be fetched from: your Home Assistant's host (any port), or public https. */
+    private fun artAllowed(target: Uri): Boolean {
+        val host = target.host ?: return false
+        if (target.scheme != "http" && target.scheme != "https") return false
+        val ha = Prefs.haUrl(this).takeIf { it.isNotEmpty() }?.let(Uri::parse)
+        if (ha?.host != null && host.equals(ha.host, ignoreCase = true)) return true
+        return target.scheme == "https" && !privateAddress(host)
+    }
+
+    /** An address on a home or local network (or this device), written as an IP or a .local name. */
+    private fun privateAddress(host: String): Boolean {
+        val h = host.lowercase().trim('[', ']')
+        if (h == "localhost" || h.endsWith(".local") || h.endsWith(".lan") || h.endsWith(".home.arpa")) return true
+        val ip = h.split('.').mapNotNull { it.toIntOrNull() }
+        if (ip.size == 4 && h.count { it == '.' } == 3) {
+            val (a, b) = ip
+            return a == 10 || a == 127 || a == 0 || (a == 169 && b == 254) || (a == 172 && b in 16..31) ||
+                (a == 192 && b == 168) || (a == 100 && b in 64..127)
+        }
+        // IPv6: loopback, link-local and unique local addresses.
+        return h == "::1" || h.startsWith("fe80:") || h.startsWith("fc") || h.startsWith("fd")
+    }
+
+    /** Your Home Assistant (as set up on this TV), for its sign-in page. */
     private fun isHomeAssistant(url: Uri): Boolean {
         val ha = Prefs.haUrl(this).takeIf { it.isNotEmpty() } ?: return false
         return sameOrigin(url, Uri.parse(ha))
@@ -247,6 +279,8 @@ class MainActivity : Activity() {
         private const val KEY_MA_TOKEN = "maToken"
         private const val KEY_MA_URL = "maUrl"
         const val BUNDLED_URL = "http://appassets.androidplatform.net/assets/web/index.html"
+        /** The largest album art passed through to the page (5 MB). */
+        private const val MAX_ART = 5L * 1024 * 1024
 
         /** The page Calm TV loaded (the dev server in debug builds, if set). */
         @Volatile
@@ -257,9 +291,5 @@ class MainActivity : Activity() {
         @Volatile
         var inFront = false
             private set
-
-        /** Set by the page (NativeBridge.setVolumeKeys) while the Music panel is open. */
-        @Volatile
-        var volumeKeysToPage = false
     }
 }

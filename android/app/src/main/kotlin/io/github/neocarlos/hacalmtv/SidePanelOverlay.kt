@@ -11,6 +11,7 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -56,6 +57,14 @@ class SidePanelOverlay(private val service: AccessibilityService, private val on
                 // Only Calm TV's own page, never another site.
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
                     !(request.url.scheme == start.scheme && request.url.host == start.host && request.url.port == start.port)
+
+                // The page's renderer crashed (or was killed for memory): close the panel instead of
+                // letting the crash take down the app and the Home button service with it.
+                override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                    Log.w(TAG, "Side panel's page crashed")
+                    handler.post { close() }
+                    return true
+                }
             }
         }
 
@@ -89,7 +98,8 @@ class SidePanelOverlay(private val service: AccessibilityService, private val on
     /**
      * A remote button while the panel is open. Returns true when the panel used it, so it doesn't
      * also reach the show underneath. Arrows and OK go to the page; Back goes to the page too (it
-     * closes a camera, then the panel itself).
+     * closes a camera, then the panel itself). If the page doesn't take Back (it hasn't loaded, broke,
+     * or is an older version), the panel closes here, so Back can never be trapped.
      */
     fun key(event: KeyEvent): Boolean {
         val w = web ?: return false
@@ -106,10 +116,10 @@ class SidePanelOverlay(private val service: AccessibilityService, private val on
         val act = event.action == KeyEvent.ACTION_DOWN && (event.repeatCount == 0 || name.startsWith("Arrow"))
         if (act) {
             stillThere()
+            // dispatchEvent answers false when the page called preventDefault, i.e. handled the key.
             w.evaluateJavascript(
                 "document.dispatchEvent(new KeyboardEvent('keydown',{key:'$name',bubbles:true,cancelable:true}))",
-                null,
-            )
+            ) { handled -> if (name == "Escape" && handled != "false") handler.post { close() } }
         }
         return true
     }

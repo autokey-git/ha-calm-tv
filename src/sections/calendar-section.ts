@@ -17,6 +17,7 @@ declare global {
 }
 
 import { child } from '../dom';
+import { slideRow } from '../row-scroll';
 
 // The bar: one column per day that has events, two events per column (a busy day takes more columns).
 const COL_W = 300;
@@ -441,7 +442,7 @@ export class CalendarSection implements Section {
       this.offset = Math.max(0, Math.min(this.offset, this.trackW - SHELF_W + EDGE));
     }
 
-    this.track.style.transform = `translateX(${-this.offset}px)`;
+    slideRow(this.shelf, this.track, -this.offset, it?.el);
     this.shelf.classList.remove('fade-r', 'fade-lr');
 
     if (this.trackW > SHELF_W) {

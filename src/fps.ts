@@ -1,5 +1,5 @@
 /**
- * A small frame-rate readout in the corner (Settings → Performance → Show frame rate), for comparing
+ * A small frame-rate readout in the corner (Settings → Appearance → Show frame rate), for comparing
  * settings on the TV itself: frames in the last second, and the longest single frame in that second.
  * At 60 fps a frame takes about 17 ms; a stutter shows up as one long frame (e.g. "worst 50 ms").
  */

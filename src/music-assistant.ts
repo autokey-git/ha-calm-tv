@@ -1,3 +1,4 @@
+import * as v from 'valibot';
 import { demoMode, settings } from './config';
 import { native } from './native';
 
@@ -10,39 +11,65 @@ import { native } from './native';
 const URL_KEY = 'calmtv.maUrl';
 const TOKEN_KEY = 'calmtv.maToken';
 
+const maybeString = v.fallback(v.optional(v.string()), undefined);
+const maybeNumber = v.fallback(v.optional(v.number()), undefined);
+
+/** A picture Music Assistant knows of: a web address, or a path its image proxy serves. */
+const MaImageSchema = v.object({
+  type: maybeString,
+  path: v.string(),
+  provider: maybeString,
+  remotely_accessible: v.fallback(v.optional(v.boolean()), undefined),
+});
+
+const maybeImage = v.fallback(v.optional(v.nullable(MaImageSchema)), undefined);
+const NamedSchema = v.object({ name: maybeString });
+
 /** One queue entry, as Music Assistant sends it (only the parts used here). */
-export interface MaQueueItem {
-  queue_item_id: string;
-  name: string;
-  duration?: number | null;
-  index?: number;
-  image?: MaImage | null;
-  media_item?: {
-    name?: string;
-    artists?: { name?: string }[];
-    album?: { name?: string } | null;
-    image?: MaImage | string | null;
-    metadata?: { images?: MaImage[] | null } | null;
-  } | null;
+const MaQueueItemSchema = v.object({
+  queue_item_id: v.string(),
+  name: v.fallback(v.string(), ''),
+  duration: maybeNumber,
+  image: maybeImage,
+  media_item: v.fallback(v.optional(v.nullable(v.object({
+    name: maybeString,
+    artists: v.fallback(v.optional(v.array(NamedSchema)), undefined),
+    metadata: v.fallback(v.optional(v.nullable(v.object({
+      images: v.fallback(v.optional(v.nullable(v.array(MaImageSchema))), undefined),
+    }))), undefined),
+  }))), undefined),
   /** Demo mode only: a ready picture. */
-  demoArt?: string;
-}
+  demoArt: maybeString,
+});
 
-export interface MaImage {
-  type?: string;
-  path: string;
-  provider?: string;
-  remotely_accessible?: boolean;
-}
+export type MaQueueItem = v.InferOutput<typeof MaQueueItemSchema>;
 
-export interface MaQueue {
-  queue_id: string;
-  display_name?: string;
-  items?: number;
-  current_index?: number | null;
-  shuffle_enabled?: boolean;
-  current_item?: { queue_item_id?: string } | null;
-}
+/** A speaker's queue, as player_queues/all lists them. */
+const MaQueueSchema = v.object({
+  queue_id: v.string(),
+  display_name: maybeString,
+});
+
+type MaQueue = v.InferOutput<typeof MaQueueSchema>;
+
+/** The server's first message on a new connection. */
+const ServerInfoSchema = v.object({
+  server_id: v.string(),
+  server_version: maybeString,
+  schema_version: v.number(),
+});
+
+/** The answer to a command: a result (maybe in parts), or an error. */
+const ResultSchema = v.object({
+  message_id: v.string(),
+  result: v.optional(v.unknown()),
+  partial: v.fallback(v.optional(v.boolean()), undefined),
+  error_code: maybeNumber,
+  details: v.fallback(v.optional(v.nullable(v.string())), undefined),
+});
+
+/** What the TV app hands over from adb (see MainActivity.rememberMa). */
+const HandoffSchema = v.object({ url: maybeString, token: maybeString });
 
 const read = (key: string): string => {
   try { return localStorage.getItem(key) ?? ''; } catch { return ''; }
@@ -57,9 +84,16 @@ let handoffChecked = false;
 function takeHandoff(): void {
   if (handoffChecked) return;
   handoffChecked = true;
-  let given: { url?: string; token?: string } = {};
+  const raw = native?.takeMaSetup?.();
 
-  try { given = JSON.parse(native?.takeMaSetup?.() || '{}'); } catch { return; }
+  if (!raw) return;
+  let given: v.InferOutput<typeof HandoffSchema>;
+
+  try {
+    given = v.parse(HandoffSchema, JSON.parse(raw));
+  } catch {
+    return;
+  }
 
   const token = cleanToken(given.token ?? '');
 
@@ -119,7 +153,11 @@ export function guessMaUrl(): string {
 /** A pasted token without what tends to come along: spaces, line breaks, quotes, "Bearer ". */
 const cleanToken = (raw: string) => raw.replace(/\s+/g, '').replace(/^["']|["']$/g, '').replace(/^Bearer/i, '');
 
-type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void; partial: unknown[] | null; timer: number };
+/** A command's arguments. */
+type Args = { [key: string]: string | number | boolean };
+
+/** A command waiting for its answer, and the connection it went out on. */
+type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void; partial: unknown[] | null; timer: number; ws: WebSocket };
 
 class MusicAssistant {
   private ws: WebSocket | null = null;
@@ -131,7 +169,7 @@ class MusicAssistant {
   /** Connected and signed in. */
   connected = false;
   /** Demo mode's made-up server (set by demo.ts). */
-  demo: ((command: string, args: Record<string, unknown>) => unknown) | null = null;
+  demo: ((command: string, args: Args) => unknown) | null = null;
 
   /** Saves the address and token, then checks them. Resolves to "" when it works, or what went wrong. */
   async save(rawUrl: string, token: string): Promise<string> {
@@ -161,7 +199,7 @@ class MusicAssistant {
 
       return '';
     } catch (e) {
-      return (e as Error).message;
+      return e instanceof Error ? e.message : String(e);
     }
   }
 
@@ -202,59 +240,81 @@ class MusicAssistant {
 
       this.ws = ws;
       let greeted = false;
-      const timer = window.setTimeout(() => { ws.close(); reject(this.fail('Music Assistant didn’t answer')); }, 8000);
+      // The first outcome is the one reported: once signed in, timed out, unreachable or refused,
+      // nothing later (such as the close that follows a timeout) can overwrite it.
+      let settled = false;
+      const done = (problem?: string): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+
+        if (problem === undefined) {
+          this.connected = true;
+          this.problem = '';
+          resolve();
+        } else reject(this.fail(problem));
+      };
+      const timer = window.setTimeout(() => {
+        done('Music Assistant didn’t answer');
+        ws.close();
+      }, 8000);
 
       ws.onmessage = (ev) => {
-        let msg: Record<string, unknown>;
+        let data: unknown;
 
-        try { msg = JSON.parse(String(ev.data)); } catch { return; }
+        try {
+          data = JSON.parse(String(ev.data));
+        } catch {
+          return;
+        }
 
         // The server speaks first, with its version; from schema 28 on it wants the token.
-        if (!greeted && 'server_id' in msg) {
+        const info = greeted ? null : v.safeParse(ServerInfoSchema, data);
+
+        if (info?.success) {
           greeted = true;
+          console.info('Music Assistant', info.output.server_version, 'schema', info.output.schema_version);
 
-          console.info('Music Assistant', msg.server_version, 'schema', msg.schema_version);
-
-          if (Number(msg.schema_version) < 28) {
-            clearTimeout(timer);
-            this.connected = true;
-            this.problem = '';
-            resolve();
+          if (info.output.schema_version < 28) {
+            done();
 
             return;
           }
 
           this.send('auth', { token }, ws)
-            .then(() => {
-              clearTimeout(timer);
-              this.connected = true;
-              this.problem = '';
-              resolve();
-            })
+            .then(() => done())
             .catch((err: Error) => {
-              clearTimeout(timer);
+              // Say why, and how long the TV's token is (never any of it: it's shown on screen), so
+              // a cut-off paste is easy to spot.
+              done(`Music Assistant refused the token (${err.message}). The token on this TV is ${token.length} characters long.`);
               ws.close();
-              // Say why, and what the TV has, so a mistyped or cut-off token is easy to spot.
-              const t = token.length > 12 ? `${token.slice(0, 6)}…${token.slice(-6)}` : token;
-              reject(this.fail(`Music Assistant refused the token (${err.message}). This TV has ${token.length} characters: ${t}`));
             });
 
           return;
         }
 
-        this.onResult(msg);
+        const result = v.safeParse(ResultSchema, data);
+
+        // Anything else (events) isn't needed here.
+        if (result.success) this.onResult(result.output);
       };
-      ws.onerror = () => {
-        clearTimeout(timer);
-        reject(this.fail('Can’t reach Music Assistant at that address'));
-      };
+      ws.onerror = () => done('Can’t reach Music Assistant at that address');
       ws.onclose = () => {
+        done('Music Assistant closed the connection');
+
+        // Only this socket's own commands fail. A socket replaced by a newer one (Settings saved a
+        // new address or token) mustn't take the new connection, or its sign-in, down with it.
+        for (const [id, p] of this.pending) {
+          if (p.ws !== ws) continue;
+          clearTimeout(p.timer);
+          p.reject(new Error('Connection closed'));
+          this.pending.delete(id);
+        }
+
+        if (this.ws !== ws) return;
         this.connected = false;
         this.ready = null;
         this.ws = null;
-
-        for (const p of this.pending.values()) p.reject(new Error('Connection closed'));
-        this.pending.clear();
       };
     });
 
@@ -271,78 +331,76 @@ class MusicAssistant {
     return new Error(problem);
   }
 
-  private onResult(msg: Record<string, unknown>): void {
-    const id = typeof msg.message_id === 'string' ? msg.message_id : '';
-    const p = id ? this.pending.get(id) : undefined;
+  private onResult(msg: v.InferOutput<typeof ResultSchema>): void {
+    const p = this.pending.get(msg.message_id);
 
     if (!p) return;
 
-    if ('error_code' in msg) {
-      this.pending.delete(id);
+    if (msg.error_code !== undefined) {
+      this.pending.delete(msg.message_id);
       clearTimeout(p.timer);
-      p.reject(new Error(String(msg.details ?? `error ${String(msg.error_code)}`)));
+      p.reject(new Error(msg.details ?? `error ${msg.error_code}`));
 
       return;
     }
 
-    // Long answers can come in parts.
+    // Long answers (a big queue) can come in parts: lists to join.
+    const part = Array.isArray(msg.result) ? msg.result : [];
+
     if (msg.partial) {
-      p.partial = [...(p.partial ?? []), ...(Array.isArray(msg.result) ? msg.result : [])];
+      p.partial = [...(p.partial ?? []), ...part];
 
       return;
     }
 
-    this.pending.delete(id);
+    this.pending.delete(msg.message_id);
     clearTimeout(p.timer);
-    p.resolve(p.partial ? [...p.partial, ...(Array.isArray(msg.result) ? msg.result : [])] : msg.result);
+    p.resolve(p.partial ? [...p.partial, ...part] : msg.result);
   }
 
-  private send<T>(command: string, args: Record<string, unknown>, ws = this.ws): Promise<T> {
+  private send(command: string, args: Args, ws = this.ws): Promise<unknown> {
     if (!ws || ws.readyState !== WebSocket.OPEN) return Promise.reject(new Error('Not connected'));
     const message_id = `ct${++this.seq}`;
 
-    return new Promise<T>((resolve, reject) => {
+    return new Promise<unknown>((resolve, reject) => {
       const timer = window.setTimeout(() => {
         this.pending.delete(message_id);
         reject(new Error('Music Assistant didn’t answer'));
       }, 10000);
-      this.pending.set(message_id, { resolve: resolve as (v: unknown) => void, reject, partial: null, timer });
+      this.pending.set(message_id, { resolve, reject, partial: null, timer, ws });
       ws.send(JSON.stringify({ message_id, command, args }));
     });
   }
 
-  async command<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
-    if (this.demo) return this.demo(command, args) as T;
+  /** Sends a command (to demo mode's made-up server in demo mode); the answer is decoded by the caller. */
+  async command(command: string, args: Args = {}): Promise<unknown> {
+    if (this.demo) return this.demo(command, args);
     await this.connect();
 
-    return this.send<T>(command, args);
+    return this.send(command, args);
   }
 
   /** Every queue, to find a speaker's by name when Home Assistant doesn't say which it is. */
-  queues(): Promise<MaQueue[]> {
-    return this.command<MaQueue[]>('player_queues/all');
+  async queues(): Promise<MaQueue[]> {
+    return v.parse(v.array(MaQueueSchema), await this.command('player_queues/all'));
   }
 
   /** A page of a queue's items. */
-  items(queueId: string, offset: number, limit: number): Promise<MaQueueItem[]> {
-    return this.command<MaQueueItem[]>('player_queues/items', { queue_id: queueId, limit, offset });
+  async items(queueId: string, offset: number, limit: number): Promise<MaQueueItem[]> {
+    return v.parse(v.array(MaQueueItemSchema), await this.command('player_queues/items', { queue_id: queueId, limit, offset }));
   }
 
   /** Jumps to an item in the queue. */
-  playIndex(queueId: string, queueItemId: string): Promise<unknown> {
-    return this.command('player_queues/play_index', { queue_id: queueId, index: queueItemId });
+  async playIndex(queueId: string, queueItemId: string): Promise<void> {
+    await this.command('player_queues/play_index', { queue_id: queueId, index: queueItemId });
   }
 
   /** A picture for a queue item: straight from the web when it can be, else through the server. */
   image(it: MaQueueItem): string {
     if (it.demoArt) return it.demoArt;
-    const m = it.media_item;
-    const img = it.image
-      ?? (m?.image && typeof m.image === 'object' ? m.image : null)
-      ?? m?.metadata?.images?.find((i) => i.type === 'thumb')
-      ?? null;
+    const img = it.image ?? it.media_item?.metadata?.images?.find((i) => i.type === 'thumb') ?? null;
 
-    if (!img?.path) return typeof m?.image === 'string' ? m.image : '';
+    if (!img) return '';
 
     if (img.remotely_accessible && /^https?:/.test(img.path)) return img.path;
     const { url } = maSettings();

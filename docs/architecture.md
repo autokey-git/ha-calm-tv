@@ -33,8 +33,19 @@ Plain TypeScript and DOM, built with Vite. There's no framework, so it stays sma
   Background layers sit at the bottom: two photo layers for cross-fades, a `<video>`, film grain, and
   shading. The four sections are stacked on top and **cross-fade**; they don't slide.
 - **Sections** (`sections/*.ts`) implement `Section` (`count`, `focus`, `blur`, `activate`).
-  `app.ts` routes the remote: Up/Down picks a section and Left/Right moves within it. Overlays (room detail,
-  settings, background picker, setup) take the keys while open.
+  `app.ts` routes the remote: Up/Down picks a section and Left/Right moves within it. Items carry
+  `data-item`, so a tap or click on one does what OK does. Overlays (room detail, settings, Music,
+  background picker, setup) take the keys while open.
+- **Input in the panels (`focus.ts`):** every overlay uses one `FocusGroup`. A panel marks what can
+  be focused with `data-focus="<id>"` and gives each item a click listener for what it does. The group
+  does the rest: the arrows move to the nearest item that way (by where things are on screen), OK
+  clicks the focused item, a tap or click focuses then acts, and Back calls the panel. So the remote,
+  touch and a mouse always do the same thing, and a new panel works all three ways without extra code.
+  Keys that change a value instead of moving (a dimmer's ←/→, the thermostat's ↑/↓) go in `onKey`.
+  Wording that names a remote key lives in `hints.ts`, next to its touch version.
+- **The Home Assistant dashboard (`?dash`):** the same app for a touch screen (see
+  [dashboard.md](dashboard.md)). `dashboard-bar.ts` adds a tab bar under the stage instead of the Apps screen;
+  everything else is shared. Inside a dashboard, `ha.ts` uses Home Assistant's own sign-in.
 - **Home Assistant (`ha.ts`):** uses `home-assistant-js-websocket`.
   - OAuth sign-in through HA's login page; tokens are kept in `localStorage`, tied to the HA address.
   - `subscribeEntities` keeps every state live. `app.ts` copies them into rooms with `applyStates()`, and
@@ -79,6 +90,8 @@ Plain TypeScript and DOM, built with Vite. There's no framework, so it stays sma
 | `src/ha.ts` | Home Assistant connection: OAuth sign-in, live states, service calls |
 | `src/ha-data.ts` | Schemas that decode HA attributes, forecasts and calendar events |
 | `src/app.ts` | The orchestrator: sections, remote input, backgrounds, HA wiring |
+| `src/focus.ts`, `src/hints.ts` | The panels' shared input (remote, touch and mouse); remote and touch wording |
+| `src/dashboard-bar.ts` | The dashboard's tab bar (`?dash`) |
 | `src/home-data.ts` | Rooms built from the config, and how HA states become status lines |
 | `src/apps.ts` | The app dock (config `apps`, or a built-in default lineup) |
 | `src/sections/` | One file per screen, plus room detail, settings, background picker |
@@ -99,6 +112,9 @@ Plain TypeScript and DOM, built with Vite. There's no framework, so it stays sma
   3. Draw and control it in `sections/zone-detail.ts`.
   4. Document it in `docs/configuration.md`.
 - **A new screen:** implement `Section` in `sections/`, then add it to `this.sections` in `app.ts`.
+- **A new panel:** create a `FocusGroup` on its element, mark its items with `data-focus`, and put
+  each item's action in a click listener. Then `npm test` (`scripts/smoke-test.mjs`) can check it: add
+  a few steps that open and use it with the remote and with taps.
 - **A new config option:**
   1. Add it to `CalmTvConfig` (`config.ts`), with validation if a mistake would break the screen.
   2. Read it via `settings.config`.

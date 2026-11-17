@@ -2,6 +2,7 @@ import { ha } from './ha';
 import { playCamera, type CameraStream } from './camera-stream';
 import { haPath, settings } from './config';
 import { child, find } from './dom';
+import { attributes, CameraAttributes } from './ha-data';
 
 // When the doorbell rings, a small live video window appears in the corner, even over other apps.
 // It follows an input_boolean that an HA automation turns on for ~60 seconds per ring. Both come
@@ -32,6 +33,9 @@ const overlayMode = () => document.documentElement.classList.contains('dbell-onl
 
 /** On the fixed 1920-wide stage. */
 const STAGE_WIDTH = 1920;
+
+/** True where video can call back on each new frame (not every Android WebView can). */
+const hasFrameCallback = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
 
 /** The corner video window. Used inside Calm TV, and alone in the TV's over-other-apps overlay. */
 export class DoorbellWindow {
@@ -77,6 +81,7 @@ export class DoorbellWindow {
     this.msg.textContent = 'Connecting…';
     this.msg.hidden = false;
     this.el.classList.add('open');
+
     // Live only once a frame is really drawn: "playing" can fire before any picture shows, and the
     // quick picture underneath should stay until then.
     const live = () => {
@@ -87,14 +92,16 @@ export class DoorbellWindow {
       clearInterval(this.stillTimer);
       this.still.removeAttribute('src');
       this.video.muted = !doorbellLook().sound;
+
       if (overlayMode()) this.paintFrames();
+
       if (!this.video.muted) this.video.play().catch(() => { this.video.muted = true; });
     };
-    const v = this.video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number };
 
-    if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(live);
+    if (hasFrameCallback) this.video.requestVideoFrameCallback(live);
     else this.video.addEventListener('playing', () => { if (this.video.videoWidth) live(); }, { once: true });
     this.startStill();
+
     // Live video trouble only matters when there's no picture at all.
     const fail = (m: string) => {
       if (this.shown && !this.el.classList.contains('has-still')) {
@@ -102,6 +109,7 @@ export class DoorbellWindow {
         this.msg.textContent = m;
       }
     };
+
     const conn = ha.connection;
 
     if (!conn) {
@@ -132,9 +140,10 @@ export class DoorbellWindow {
    * up if live video never connects (e.g. a camera whose WebRTC is slow or unsupported).
    */
   private startStill(): void {
-    const token = ha.entities[doorbellCamera()]?.attributes.access_token;
+    const camera = ha.entities[doorbellCamera()];
+    const token = camera ? attributes(camera, CameraAttributes).access_token : undefined;
 
-    if (typeof token !== 'string' || !settings.haUrl) return;
+    if (!token || !settings.haUrl) return;
     this.still.src = haPath(`/api/camera_proxy_stream/${doorbellCamera()}?token=${encodeURIComponent(token)}`);
     // A stream's first frame doesn't always fire "load"; check for a picture instead.
     this.stillTimer = window.setInterval(() => {
@@ -157,7 +166,7 @@ export class DoorbellWindow {
     if (this.painting) return;
     this.painting = true;
     const ctx = this.canvas.getContext('2d');
-    const v = this.video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number };
+
     const draw = () => {
       if (!this.shown || !ctx) {
         this.painting = false;
@@ -170,11 +179,12 @@ export class DoorbellWindow {
 
       if (w && h) {
         if (this.canvas.width !== w) this.canvas.width = w;
+
         if (this.canvas.height !== h) this.canvas.height = h;
         ctx.drawImage(this.video, 0, 0, w, h);
       }
 
-      if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(draw);
+      if (hasFrameCallback) this.video.requestVideoFrameCallback(draw);
       else requestAnimationFrame(draw);
     };
 

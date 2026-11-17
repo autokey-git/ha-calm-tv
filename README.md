@@ -24,8 +24,9 @@ photo to keep them small; the video backgrounds are at the top and under
 
 ### Your home at a glance
 
-Each room shows what's on, and turns amber when something needs you: a door left unlocked, the
-garage open, a vacuum out of water. Open a room to switch and dim its lights with the remote; the
+Your Home Assistant Areas become the rooms, with no setup (or list your own). Each room shows
+what's on, and turns amber when something needs you: a door left unlocked, the garage open, a
+vacuum out of water. Open a room to switch and dim its lights with the remote; the
 change goes straight to Home Assistant.
 
 ![Moving across the rooms on the Smart Home screen, opening the living room and brightening the ceiling light step by step; the room then reads "3 lights on"](docs/images/demo-smart-home.webp)
@@ -60,6 +61,17 @@ of rain.
 
 ![Stepping from today through the week, from sunny days into two rainy ones, with the hourly bars changing each time](docs/images/demo-weather.webp)
 
+### Music
+
+An optional Music screen shows what's playing as just the album art over your background, with
+play/pause, skip and volume on a frosted bar that fades away when you're not using it. **More**
+opens your speakers and library: browse by artist, album or playlist and play it on any speaker, or
+group speakers to play together. Made for [Music Assistant](https://music-assistant.io), through Home
+Assistant's own media players. Contributed by [autokey-git](https://github.com/autokey-git); see
+[doorbell-and-music.md](docs/doorbell-and-music.md) to set it up.
+
+![The Music screen with an album cover and its controls, then More: adding the kitchen speaker to play along with the living room, and back to the Music screen](docs/images/demo-music.webp)
+
 ### Make it yours
 
 Photos or slow looping videos behind everything, with the bars frosted over them. Add your own, or
@@ -79,8 +91,8 @@ On the Streamer that holds 60 fps at rest, dipping to about 52 fps while switchi
 video. Other Google TV and Android TV devices (Android 12 or newer) should run it, but I haven't
 tried any, and cheaper ones with less memory, like the Chromecast with Google TV, may struggle.
 
-You can check on your own TV: **Settings → Performance** has switches for video backgrounds,
-frosted glass and screen transitions, and a frame-rate counter, so
+You can check on your own TV: **Settings → Appearance** has switches for video backgrounds and
+visual effects (frosted glass and screen fades), and a frame-rate counter, so
 you can flip a setting and see the difference straight away. Each TV keeps its own choices; to set
 a default for every TV, use `display` in `calm-tv.json`. Your mileage may vary.
 
@@ -104,7 +116,7 @@ npm run dev
 
 Open [localhost:5173/?demo](http://localhost:5173/?demo) to try the whole app against a made-up
 home (the same as the [live demo](https://neocarlos.github.io/ha-calm-tv/)): no Home Assistant needed. Its lights, scenes, curtains and thermostat respond, the cameras play
-a clip, and the calendar and weather are filled with sample days. Use the arrow keys, Enter and
+a clip, the speakers play made-up albums, and the calendar and weather are filled with sample days. Use the arrow keys, Enter and
 Escape, or the mouse.
 
 To see your own home, copy `config/calm-tv.example.json` to `calm-tv.json`, fill in your entities,
@@ -133,6 +145,9 @@ Follow [docs/getting-started.md](docs/getting-started.md), then
 Assistant and sign in once. [docs/home-assistant.md](docs/home-assistant.md) covers what Home
 Assistant needs, and [docs/doorbell-and-music.md](docs/doorbell-and-music.md) sets up the
 doorbell window and the Music panel with your own entities.
+
+Have a wall or kitchen tablet too? [docs/dashboard.md](docs/dashboard.md) runs the same app there as a
+Home Assistant dashboard, made for touch.
 
 The [latest release](https://github.com/NeoCarlos/ha-calm-tv/releases/latest) has a ready-made APK,
 so you can try it without building anything. It's a debug build; build your own from source for

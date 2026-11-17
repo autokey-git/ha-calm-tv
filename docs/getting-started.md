@@ -30,7 +30,7 @@ npm run dev
 
 Open http://localhost:5173, then press ↓ to the Smart Home screen → OK on the Home Assistant card → sign in.
 Walk through each screen with the arrow keys. Fix entity ids that show "Unavailable".
-Check Settings (the gear at the end of the dock) → Home setup for config errors.
+Check Settings (the gear at the end of the dock) → Home Assistant → Home setup for config errors.
 
 ## 3. Get Home Assistant ready
 

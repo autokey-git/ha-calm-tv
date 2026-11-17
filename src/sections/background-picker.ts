@@ -1,6 +1,8 @@
 import { child } from '../dom';
+import { FocusGroup } from '../focus';
+import { hint } from '../hints';
 // Choose the background: a strip of thumbnails along the bottom, of videos while video backgrounds
-// are on (Settings → Performance), of photos otherwise. While it's open the screens fade away, so
+// are on (Settings → Appearance), of photos otherwise. While it's open the screens fade away, so
 // the chosen background shows full screen behind it.
 
 export interface BgChoice {
@@ -30,6 +32,7 @@ export class BackgroundPicker {
   private focus = 0;
   private offset = 0;
   private open = false;
+  private nav: FocusGroup;
 
   constructor(
     mount: HTMLElement,
@@ -41,11 +44,21 @@ export class BackgroundPicker {
     this.el.className = 'bgpick';
     this.el.innerHTML = `
       <div class="bgpick-shade"></div>
-      <div class="bgpick-head"><span class="bgpick-title">Background</span><span class="bgpick-hint">OK to choose · Back when done</span></div>
+      <div class="bgpick-head"><span class="bgpick-title">Background</span><span class="bgpick-hint">${hint('backgroundPicker')}</span><button class="bgpick-done">Done</button></div>
       <div class="bgpick-shelf"><div class="bgpick-track"></div></div>`;
     mount.appendChild(this.el);
+    child(this.el, '.bgpick-done').addEventListener('click', () => this.close());
     this.track = child(this.el, '.bgpick-track');
     this.titleEl = child(this.el, '.bgpick-title');
+    // Remote, touch and mouse (see focus.ts). The shelf slides itself, so the focus tells it where.
+    this.nav = new FocusGroup(this.el, {
+      onBack: () => this.close(),
+      scrollIntoView: false,
+      onFocus: (id) => {
+        this.focus = Number(id.split('-')[1]);
+        this.render();
+      },
+    });
   }
 
   /** Builds a tile per option; the options change with the video setting. */
@@ -58,11 +71,8 @@ export class BackgroundPicker {
       el.className = 'bgpick-tile';
       el.style.left = `${x}px`;
       el.innerHTML = `<div class="bgpick-img" style="background-image:url('${opt.thumb}')"></div><div class="bgpick-name">${esc(opt.name)}</div>`;
-      el.addEventListener('mouseenter', () => {
-        this.focus = i;
-        this.render();
-      });
-      el.addEventListener('click', () => this.pick());
+      el.dataset.focus = `background-${i}`;
+      el.addEventListener('click', () => this.pick(i));
       this.track.appendChild(el);
       this.tiles.push({ el, opt, x });
     });
@@ -82,6 +92,7 @@ export class BackgroundPicker {
     document.documentElement.classList.add('picking');
     this.el.classList.add('open');
     this.render();
+    this.nav.focus(`background-${this.focus}`);
   }
 
   close(): void {
@@ -91,49 +102,21 @@ export class BackgroundPicker {
   }
 
   handleKey(e: KeyboardEvent): void {
-    const k = e.key;
-
-    if (k === 'Escape' || k === 'Backspace') {
-      e.preventDefault();
-      this.close();
-
-      return;
-    }
-
-    if (k === 'Enter' || k === ' ') {
-      e.preventDefault();
-      this.pick();
-
-      return;
-    }
-
-    if (k === 'ArrowLeft') {
-      e.preventDefault();
-      this.focus = Math.max(0, this.focus - 1);
-      this.render();
-    }
-    else if (k === 'ArrowRight') {
-      e.preventDefault();
-      this.focus = Math.min(this.tiles.length - 1, this.focus + 1);
-      this.render();
-    }
-    else if (k.startsWith('Arrow')) e.preventDefault();
+    this.nav.handleKey(e);
   }
 
-  private pick(): void {
-    const t = this.tiles[this.focus];
+  private pick(i: number): void {
+    const t = this.tiles[i];
 
     if (!t) return;
     this.choose({ kind: t.opt.kind, index: t.opt.index });
     this.render();
   }
 
+  /** Marks the chosen tile, and slides the shelf so the focused one is on screen. */
   private render(): void {
     const cur = this.current();
-    this.tiles.forEach((t, i) => {
-      t.el.classList.toggle('focus', i === this.focus);
-      t.el.classList.toggle('chosen', t.opt.kind === cur.kind && t.opt.index === cur.index);
-    });
+    this.tiles.forEach((t) => t.el.classList.toggle('chosen', t.opt.kind === cur.kind && t.opt.index === cur.index));
     const t = this.tiles[this.focus];
     const total = this.tiles.length ? this.tiles[this.tiles.length - 1].x + TILE_W : 0;
 

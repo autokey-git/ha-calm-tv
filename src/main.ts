@@ -8,6 +8,7 @@ import { wallpapers } from './wallpapers';
 import { videos } from './videos';
 import { showSetup, SIGN_IN_NEXT } from './setup';
 import { ha } from './ha';
+import { watchStoredConfig } from './config-store';
 import { PHASES, type Phase, type Variants } from './variants';
 
 /** A background's dawn/day/dusk/night versions from calm-tv.json, as full addresses (undefined if none). */
@@ -47,6 +48,8 @@ async function main(): Promise<void> {
   }
 
   new CalmTv().start();
+  // The setup kept in Home Assistant: when it changes there, start again with it.
+  watchStoredConfig();
 
   if (!settings.haUrl) {
     showSetup({ canCancel: false });

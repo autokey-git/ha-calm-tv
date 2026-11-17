@@ -68,7 +68,10 @@ fixed them. Read this before changing animations, video, the Android side or the
 
 - **Calm over complete.** Few rooms, few devices per room, status lines instead of badges. Only add a
   device if its status is useful from the couch.
-- **Locks, garage doors and vacuums are status only.** No unlocking from a TV remote.
+- **Locks, garage doors and vacuums can be controlled, but never by accident.** A remote gets bumped,
+  sat on and repeats keys, so a single press never unlocks a lock or moves a door: it takes a deliberate
+  second press on the same item. Nothing acts on a state it can't read, a moving door is stopped rather
+  than reversed, and a refusal from Home Assistant is shown.
 - **A dark gradient behind the top half** of the Smart Home, Calendar and Weather screens keeps white text
   readable on bright photos.
 - **The Weather chart shows a moving window:** now plus the next 8 hours for Today, and 6 AM–10 PM every 2

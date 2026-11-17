@@ -3,6 +3,7 @@ import type { App } from '../types';
 import type { Section } from './section';
 import { child } from '../dom';
 import { conditionIcon, conditionLabel } from './weather-section';
+import { slideRow } from '../row-scroll';
 
 // Icon-only tiles; the label appears only for the focused app.
 const TW = 150;
@@ -46,7 +47,15 @@ export class AppsSection implements Section {
     this.shelf = child(s, '.gb-shelf');
     this.clockEl = child(s, '#clock');
     this.dateEl = child(s, '#cdate');
+    this.buildTiles();
 
+    return s;
+  }
+
+  /** The dock's tiles, from `apps` (again after Choose apps changes the dock). */
+  private buildTiles(): void {
+    this.track.innerHTML = '';
+    this.tiles = [];
     const top = (DOCK_H - TH) / 2;
     apps.forEach((a, i) => {
       const t = document.createElement('div');
@@ -61,8 +70,15 @@ export class AppsSection implements Section {
       this.track.appendChild(t);
       this.tiles.push(t);
     });
+  }
 
-    return s;
+  /** The dock changed (Settings → Choose apps): new tiles. Returns the focused column, kept in range. */
+  rebuild(col: number): number {
+    // On the Settings tile (the last), stay on it as apps come and go before it.
+    const onSettings = col === this.tiles.length - 1;
+    this.buildTiles();
+
+    return onSettings ? this.tiles.length - 1 : Math.max(0, Math.min(col, this.tiles.length - 1));
   }
 
   count(): number {
@@ -95,7 +111,7 @@ export class AppsSection implements Section {
       else if (canRight) this.shelf.classList.add('fade-r');
     }
 
-    this.track.style.transform = `translateX(${tx}px)`;
+    slideRow(this.shelf, this.track, tx, this.tiles[i]);
     this.tiles[i]?.classList.add('is-focus');
   }
 

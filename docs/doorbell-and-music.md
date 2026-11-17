@@ -1,12 +1,12 @@
-# Set up the doorbell window and the Music panel
+# Set up the doorbell window and the Music screen
 
 This guide connects two optional features to *your* Home Assistant: the doorbell window that pops
-up over whatever you're watching, and the Music panel for Music Assistant. You find your own entity
+up over whatever you're watching, and the Music screen for Music Assistant. You find your own entity
 ids in Home Assistant, then put them in `calm-tv.json`, the file the TV reads from Home Assistant's
 `www` folder (see [configuration.md](configuration.md)).
 
 After any change to `calm-tv.json`, reload it on the TV: **Settings → Home Assistant → Home setup
-(calm-tv.json) → OK**. Restarting the app also reloads it.
+→ In use**. Restarting the app also reloads it.
 
 ## Find your entity ids
 
@@ -43,8 +43,8 @@ The same speaker often shows up twice, for example `media_player.kitchen` (Sonos
 
 ## The doorbell window
 
-When the doorbell rings, the TV pauses what's playing and shows the doorbell camera live in a
-window, even over Netflix or any other app. Back closes it.
+When the doorbell rings, the TV shows the doorbell camera live in a window, even over Netflix or
+any other app. Back closes it. With `"pause": true` (below), it also pauses what's playing.
 
 ### 1. A "someone is at the door" switch in Home Assistant
 
@@ -112,15 +112,10 @@ The TV watches an `input_boolean` that is on while someone is at the door.
 }
 ```
 
-| Option | What it does |
-| --- | --- |
-| `window` | `true` turns the pop-up on. |
-| `camera` | Your doorbell camera, from the camera list above. |
-| `ringing` | The switch from step 1. |
-| `size` | Width of the window, in % of the screen. Default 34; 75 is three quarters. |
-| `position` | `"center"`, or `"corner"` (top right, the default). |
-| `pause` | `true` pauses what's playing when it rings. |
-| `sound` | `true` plays the camera's audio. Some cameras send audio the TV can't play live (AAC); then you get video only. |
+`camera` is your doorbell camera from the list above, and `ringing` is the switch from step 1. The
+last four are optional: `size` and `position` make the window bigger or centred, `pause` pauses
+what's playing, and `sound` plays the camera's audio. Leave them out for the small, silent window
+in the corner. [configuration.md](configuration.md#doorbell) has each one's details and default.
 
 ### 3. Test it
 
@@ -131,11 +126,17 @@ right after.
 If nothing pops up over other apps, Calm TV's accessibility service is off (an app update turns it
 off). On the TV: **Settings → Accessibility → Calm TV: Home button → On**, then open Calm TV once.
 
-## The Music panel
+## The Music screen
 
-A **Music** tile in the dock (just left of Settings) opens what's playing, play/pause, skip,
-volume, the speakers, speaker grouping, and library buttons (Artists, Albums, Tracks, Playlists,
-Radio, Podcasts, Audiobooks) that you can browse and play from. It needs
+The **Music** screen (↓ from Smart Home) is a calm view of what's playing: the album art on its
+own, and a frosted bar with the song, previous / play-pause / next and volume. Like every screen, it
+rests after a few seconds without a key press: the bar fades away and the art and caption settle to
+the middle; the first key only brings the bar back. With nothing playing, a
+placeholder cover with a music note stands in for the art.
+
+**More** on the bar opens the Music panel: shuffle, the queue, the speakers, speaker grouping, and
+library buttons (Artists, Albums, Tracks, Playlists, Radio, Podcasts, Audiobooks) that you can
+browse and play from. Back returns to the Music screen. It needs
 [Music Assistant](https://music-assistant.io) set up in Home Assistant.
 
 ### In calm-tv.json
@@ -155,14 +156,21 @@ Radio, Podcasts, Audiobooks) that you can browse and play from. It needs
 - `library` (optional): which library buttons to show, for example
   `"library": ["Albums", "Playlists", "Radio"]`. Leave it out for all seven.
 
-To put the Music tile somewhere else in the dock, add it to `"apps"` where you want it:
-`{ "name": "Music", "open": "music" }`. You can also move it with **Settings → Arrange dock**.
+To move the Music screen, or leave it out, list it in `"screens"` (see configuration.md).
 
 ### Using it with the remote
 
-- **Speakers:** OK picks the speaker that the controls and library play on.
-- **Group button** (after volume): OK on other speakers adds them to play along, or takes them out.
-  Back when done.
+- **Speakers:** OK on another speaker picks it, so the controls and library play there. OK on the
+  chosen speaker (or one grouped with it) turns its card into a volume slider: ←/→ to change it,
+  OK or Back when done. A playing speaker shows its album cover with moving bars; a speaker playing
+  along shows its leader's cover with a link. Idle speakers are grey. Moving onto a speaker lights
+  up the rest of its group.
+- **Group speakers** (the wide button above the speakers): OK on other speakers adds them to play
+  along, or takes them out. **Play everywhere** adds them all. **Done grouping**, Back or ← when done.
+- **Controls:** shuffle, previous, play/pause, next and queue; below them the volume, which turns
+  every speaker in the group. The background takes its colour from the album cover.
+- **Queue:** what's playing and what's next (the whole queue, with OK to jump to a song, once
+  Music Assistant is connected; see below).
 - **Library:** OK on a button opens its grid. OK on an artist, album or playlist opens it (an album
   or playlist starts with **Play all**). OK on a song or station plays it. Back goes up a level.
 
@@ -176,15 +184,15 @@ through the whole queue, connect the TV to Music Assistant itself:
    8095, for example `http://192.168.1.20:8095`), then the token.
 
 Typing a token with the remote is slow: paste it with the Google TV remote in the Google Home app
-on your phone, or over adb with `adb shell input text '<token>'` while the token box is selected.
+on your phone (tap its keyboard while the token box is selected). Or hand it over with adb in one go
+(adb's `input text` cuts long text off):
+
+```
+adb shell am start -n io.github.neocarlos.hacalmtv/.MainActivity --es maToken <token>
+```
+
 The address and token are kept on the TV only, never in `calm-tv.json`. Leave the address empty and
 press OK to turn it off.
-
-### Volume
-
-- The volume buttons under the controls turn every speaker in the group.
-- OK on a speaker picks it and turns its card into its own volume slider: ←/→ to change it, OK or
-  Back when done.
 
 ### If something's off
 

@@ -80,7 +80,7 @@ const SCENES = {
   },
   calendar: {
     background: 'Stylized Forest Brook',
-    setup: [['ArrowDown', 600], ['ArrowDown', 2500]],
+    setup: [['ArrowDown', 600], ['ArrowDown', 600], ['ArrowDown', 2500]],
     steps: [
       [null, 1500],
       ['ArrowRight', 900], ['ArrowRight', 900], ['ArrowRight', 900], ['ArrowRight', 900],
@@ -89,10 +89,29 @@ const SCENES = {
   },
   weather: {
     background: 'Mountain Lake Sunset',
-    setup: [['ArrowDown', 600], ['ArrowDown', 600], ['ArrowDown', 2500]],
+    setup: [['ArrowDown', 600], ['ArrowDown', 600], ['ArrowDown', 600], ['ArrowDown', 2500]],
     steps: [
       [null, 1500],
       ['ArrowRight', 1100], ['ArrowRight', 1100], ['ArrowRight', 1100], ['ArrowRight', 1100], ['ArrowRight', 1800],
+    ],
+  },
+  // The Music screen (the art and the bar), More → the kitchen speaker joins the group, and back
+  // to the Music screen.
+  music: {
+    background: 'Stylized Forest Brook',
+    setup: [['ArrowDown', 600], ['ArrowDown', 1500]],
+    steps: [
+      [null, 2500],
+      // Along the bar to More.
+      ['ArrowRight', 400], ['ArrowRight', 400], ['ArrowRight', 400], ['ArrowRight', 900],
+      ['Enter', 2200],
+      // Up to the Group speakers button above the speakers, then add the kitchen.
+      ['ArrowUp', 1000],
+      ['Enter', 1300],
+      ['Enter', 2200],
+      ['Escape', 1500],
+      // Back to the Music screen.
+      ['Escape', 3000],
     ],
   },
   backgrounds: {

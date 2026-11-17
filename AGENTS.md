@@ -20,7 +20,7 @@ Follow [docs/getting-started.md](docs/getting-started.md):
    - If they give you a Home Assistant token, list entities with `GET /api/states`. Use the token only on
      their machine; never write it into the project.
 2. **Browser preview:** add `.env.local` with `VITE_HA_URL=…`, run `npm install` and `npm run dev`, and let them
-   sign in. Fix "Unavailable" devices, which mean wrong entity ids, and check Settings → Home setup.
+   sign in. Fix "Unavailable" devices, which mean wrong entity ids, and check Settings → Home Assistant → Home setup.
 3. **Home Assistant:** set up the TV user, Open-Meteo, calendar refresh, and a place for the config
    ([docs/home-assistant.md](docs/home-assistant.md)).
 4. **TV:** follow [docs/tv-setup.md](docs/tv-setup.md): adb, install, home screen, address, sign-in, config.
@@ -55,12 +55,19 @@ To check the TV's page, open `chrome://inspect` with adb connected (debug builds
 
 - **Never commit or embed secrets.** No HA tokens, passwords or long-lived tokens in code, config or docs.
   The TV signs in through HA's own login page.
-- **Locks, garage doors and vacuums stay status only** unless the user explicitly asks otherwise.
+- **Locks, garage doors and vacuums may be controlled, but never by accident.** A single press, a
+  bumped remote or a repeating key must not unlock a lock or move a door: ask for a deliberate second
+  press on the same item, never act on a state that's unknown, stop (not reverse) a door that's
+  moving, and say so when Home Assistant refuses.
 - **Keep the WebView locked down.** `MainActivity` may only navigate to the page and the configured HA.
   Don't widen it, and never expose `CalmTvNative` to other sites.
 - **Controls act on the real house.** When testing with the user's HA, avoid toggling things they
   didn't ask you to; reading states is fine.
 - **`adb shell settings put secure enabled_accessibility_services`** replaces the whole list. Read it
-  first and append.
+  first and append. It's a security setting on the user's TV: leave turning it on to them.
+- **Every install switches the Home button service off** (Android turns an accessibility service off
+  when its app is updated). After `tv:install`, tell the user to turn it back on (TV Settings → System
+  → Accessibility → Calm TV: Home button), or Home, the doorbell window, door pop-ups and ★ stop working.
+  Keys sent with `adb shell input keyevent` never reach the service either, so test ★ with a real remote.
 - **Performance:** test animations and video on the TV itself. See [docs/lessons-learned.md](docs/lessons-learned.md)
   before changing transitions, blur or video handling.

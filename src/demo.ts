@@ -2,16 +2,16 @@ import type { HassEntities, HassEntity, MessageBase } from 'home-assistant-js-we
 import * as v from 'valibot';
 import exampleConfig from '../config/calm-tv.example.json?raw';
 import doorbellView from './demo-media/doorbell-camera.mp4?url';
-import { decodeConfig, settings } from './config';
+import { decodeConfig, settings, dashboardMode } from './config';
 import { ha, type HaLink } from './ha';
 import { demoCameras } from './camera-stream';
-import type { CalendarEvent, CalendarResponse, ForecastEntry, ForecastMessage } from './ha-data';
+import type { BrowseNode, CalendarEvent, CalendarResponse, ForecastEntry, ForecastMessage } from './ha-data';
 import { videos } from './videos';
 import { wallpapers } from './wallpapers';
 import { showRemote } from './demo-remote';
 import { sky, PHASES } from './sky';
 import { ma } from './music-assistant';
-import artA from './wallpapers/00-mountain-lake-sunset.jpg?url';
+import artA from './demo-media/album-echoes.jpg?url';
 import artB from './wallpapers/01-stylized-forest-brook.jpg?url';
 
 /**
@@ -127,6 +127,12 @@ function initialStates() {
     ['select.office_scene', ['unknown', { options: ['Focus', 'Bright', 'Relax', 'Nightlight'] }]],
     ['light.office_desk', light(false)],
     ['light.office_ceiling', light(false)],
+    // Scenes, for rooms from Areas (?demo&areas): a scene's state is when it was last turned on.
+    ['scene.office_focus', just('2026-11-14T08:00:00+00:00')],
+    ['scene.office_relax', just('2026-11-14T17:30:00+00:00')],
+    ['scene.office_nightlight', just('2026-11-13T22:00:00+00:00')],
+    ['scene.bedroom_read', just('2026-11-13T21:00:00+00:00')],
+    ['scene.bedroom_sunrise', just('2026-11-14T07:00:00+00:00')],
     // Bedroom
     ['select.bedroom_scene', ['unknown', { options: ['Relax', 'Read', 'Nightlight', 'Sunrise'] }]],
     ['light.bedroom_ceiling', light(false)],
@@ -161,12 +167,19 @@ function initialStates() {
   ]);
 }
 
-/** Made-up music: a few albums, with the project's own photos as album art. */
+/**
+ * Made-up music, with covers made for the project: "Echoes of the Distant" by The Soundtracks
+ * (src/demo-media/album-echoes.jpg) on the even tracks, and the forest background on the odd one.
+ */
 const DEMO_TRACKS = [
-  { title: 'Slow Tide', artist: 'Harbor Lights', album: 'Evening Water', duration: 247 },
+  { title: 'Slow Tide', artist: 'The Soundtracks', album: 'Echoes of the Distant', duration: 247 },
   { title: 'Paper Lanterns', artist: 'The Quiet Hours', album: 'Small Rooms', duration: 213 },
-  { title: 'Northern Window', artist: 'Ada Lune', album: 'Winterlight', duration: 198 },
+  { title: 'Northern Window', artist: 'The Soundtracks', album: 'Echoes of the Distant', duration: 198 },
 ];
+
+/** The albums above, once each, with the cover of their first track. */
+const DEMO_ALBUMS = DEMO_TRACKS.flatMap((t, i) => (DEMO_TRACKS.findIndex((x) => x.album === t.album) === i ? [{ name: t.album, art: i }] : []));
+
 // Full addresses, so they aren't taken as paths on Home Assistant.
 const demoArt = (i: number) => new URL(i % 2 ? artB : artA, location.href).href;
 
@@ -183,12 +196,12 @@ function speaker(state: string, track: number, volume: number): [string, DemoAtt
 /** media_player/browse_media: a root with Playlists, and a few playlists in it. */
 const DEMO_PLAYLISTS = ['Sunday Morning', 'Dinner Jazz', 'Focus', 'Road Trip', 'Rainy Day', 'Kids Mix', 'Evening Piano'];
 
-const DEMO_ARTISTS = ['Harbor Lights', 'The Quiet Hours', 'Juniper Lane', 'Northbound', 'Ada Moss', 'Field Notes'];
+const DEMO_ARTISTS = ['The Soundtracks', 'The Quiet Hours', 'Juniper Lane', 'Northbound', 'Ada Moss', 'Field Notes'];
 
 const demoNode = (title: string, id: string, type: string, art: number, play = true, expand = false) =>
   ({ title, media_content_id: id, media_content_type: type, can_play: play, can_expand: expand, thumbnail: demoArt(art) });
 
-function browseReply(id: string | undefined): object {
+function browseReply(id: string | undefined): BrowseNode {
   if (!id) return { title: 'Music Assistant', children: ['Artists', 'Albums', 'Tracks', 'Playlists', 'Radio', 'Podcasts', 'Audiobooks', 'Genres']
     .map((t) => ({ title: t, media_content_id: t.toLowerCase().split(' ')[0], media_content_type: t.toLowerCase(), can_expand: true })) };
 
@@ -197,13 +210,51 @@ function browseReply(id: string | undefined): object {
   switch (kind) {
     case 'playlists': return { title: 'Playlists', children: DEMO_PLAYLISTS.map((name, i) => demoNode(name, `playlist/${i}`, 'playlist', i + 1, true, true)) };
     case 'artists': return { title: 'Artists', children: DEMO_ARTISTS.map((name, i) => demoNode(name, `artist/${i}`, 'artist', i, false, true)) };
-    case 'albums': return { title: 'Albums', children: DEMO_TRACKS.map((t, i) => demoNode(t.album, `album/${i}`, 'album', i, true, true)) };
+    case 'albums': return { title: 'Albums', children: DEMO_ALBUMS.map((a, i) => demoNode(a.name, `album/${i}`, 'album', a.art, true, true)) };
     case 'tracks':
     case 'playlist':
     case 'album':
       return { title: kind, can_play: kind !== 'tracks', children: DEMO_TRACKS.map((t, i) => demoNode(t.title, `track/${i}`, 'track', i)) };
-    case 'artist': return { title: DEMO_ARTISTS[Number(n)] ?? '', children: DEMO_TRACKS.slice(0, 3).map((t, i) => demoNode(t.album, `album/${i}`, 'album', i, true, true)) };
+    case 'artist': return { title: DEMO_ARTISTS[Number(n)] ?? '', children: DEMO_ALBUMS.map((a, i) => demoNode(a.name, `album/${i}`, 'album', a.art, true, true)) };
     default: return { title: kind, children: [] };
+  }
+}
+
+// ---------- Home Assistant's registries, for rooms from Areas (?demo&areas) ----------
+
+/** The example rooms as Areas on three floors, plus a few entities that must stay out of the rooms. */
+function demoRegistry(type: string): unknown {
+  const rooms = decodeConfig(exampleConfig).rooms ?? [];
+  const areaId = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const floorOf: Record<string, string> = { living_room: 'downstairs', kitchen: 'downstairs', office: 'upstairs', bedroom: 'upstairs', hallways: 'upstairs', outside: 'outside' };
+
+  switch (type) {
+    case 'config/floor_registry/list':
+      return [{ floor_id: 'upstairs', name: 'Upstairs', level: 1 }, { floor_id: 'downstairs', name: 'Downstairs', level: 0 }, { floor_id: 'outside', name: 'Outside', level: 2 }];
+    case 'config/area_registry/list':
+      return rooms.map((r) => ({ area_id: areaId(r.name), name: r.name, floor_id: floorOf[areaId(r.name)], icon: null }));
+    case 'config/device_registry/list':
+      return [{ id: 'hidden_lamp', area_id: 'living_room', labels: ['hide_in_calm_tv'], disabled_by: null }];
+    case 'config/entity_registry/list_for_display': {
+      const entities: object[] = rooms.flatMap((r) => r.groups.flatMap((g) => g.devices)
+        .filter((d) => !d.entity.startsWith('select.'))
+        .map((d) => ({ ei: d.entity, ai: areaId(rooms.find((x) => x.groups.some((g) => g.devices.includes(d)))?.name ?? '') })));
+      entities.push(
+        { ei: 'scene.office_focus', ai: 'office', en: 'Focus' }, { ei: 'scene.office_relax', ai: 'office', en: 'Relax' },
+        { ei: 'scene.office_nightlight', ai: 'office', en: 'Nightlight' },
+        { ei: 'scene.bedroom_read', ai: 'bedroom', en: 'Read' }, { ei: 'scene.bedroom_sunrise', ai: 'bedroom', en: 'Sunrise' },
+        // A lamp's feature, not a lamp: stays out.
+        { ei: 'switch.living_room_floor_lamp_music_mode', ai: 'living_room', en: 'Music mode' },
+        // Labelled "Hide in Calm TV" (on its device): stays out.
+        { ei: 'light.hidden_lamp', di: 'hidden_lamp' },
+        // The garage door's opener: a cover that's a door, so it stays out of the room.
+        { ei: 'cover.garage_door', ai: 'outside' },
+      );
+
+      return { entity_categories: { 0: 'config', 1: 'diagnostic' }, entities };
+    }
+
+    default: return undefined;
   }
 }
 
@@ -328,19 +379,27 @@ const ServiceCallSchema = v.object({
 
 type ServiceCall = v.InferOutput<typeof ServiceCallSchema>;
 
+/** The Music panel's media browser request; no id means the top level. */
+const BrowseRequestSchema = v.object({
+  type: v.literal('media_player/browse_media'),
+  media_content_id: v.optional(v.string()),
+});
+
 const ForecastSubscriptionSchema = v.object({
   type: v.literal('weather/subscribe_forecast'),
   forecast_type: v.picklist(['daily', 'hourly']),
 });
 
 /** What the stand-in answers: calendar events, or nothing for other calls. */
-type DemoReply = CalendarResponse | { done: true } | { response: Record<string, unknown> };
+type DemoReply = CalendarResponse | { done: true } | { response: { [entity: string]: object } };
 
 /** Pretends to be Home Assistant: holds the made-up states and changes them as Calm TV asks. */
 class DemoHome {
   private states = new Map<string, DemoEntity>();
   private listeners: ((e: HassEntities) => void)[] = [];
   private lastBrightness = new Map<string, number>();
+  /** Covers on their way open or closed: the timer that finishes the move. */
+  private moving = new Map<string, number>();
 
   constructor() {
     // Changed "a while ago", so nothing counts as just changed.
@@ -373,11 +432,19 @@ class DemoHome {
   /** Answers the screens' messages, as Home Assistant's websocket would. */
   readonly link: HaLink = {
     sendMessagePromise: <Result>(m: MessageBase) => {
-      if (m.type === 'media_player/browse_media') {
-        const id = typeof m.media_content_id === 'string' ? m.media_content_id : undefined;
+      const browse = v.safeParse(BrowseRequestSchema, m);
 
-        // SAFETY: the Music panel reads this as a BrowseNode, the shape HA answers with.
-        return Promise.resolve(browseReply(id) as Result);
+      if (browse.success) {
+        // SAFETY: the Music panel decodes this with BrowseNodeSchema, as it does HA's own answer.
+        return Promise.resolve(browseReply(browse.output.media_content_id) as Result);
+      }
+
+      // Rooms from Areas (?demo&areas): Home Assistant's area, floor, device and entity lists.
+      const registry = demoRegistry(m.type);
+
+      if (registry !== undefined) {
+        // SAFETY: areas.ts decodes each list with its schema, as it does Home Assistant's own answer.
+        return Promise.resolve(registry as Result);
       }
 
       const call = v.safeParse(ServiceCallSchema, m);
@@ -414,9 +481,18 @@ class DemoHome {
     if (!s) return { done: true };
 
     switch (`${call.domain}.${call.service}`) {
-      case 'media_player.media_play': this.set(id, 'playing', { media_position_updated_at: new Date().toISOString() }); return { done: true };
-      case 'media_player.media_pause': this.set(id, 'paused'); return { done: true };
-      case 'media_player.volume_set': this.set(id, s.state, { volume_level: data.volume_level ?? 0.3 }); return { done: true };
+      case 'media_player.media_play':
+        this.set(id, 'playing', { media_position_updated_at: new Date().toISOString() });
+
+        return { done: true };
+      case 'media_player.media_pause':
+        this.set(id, 'paused');
+
+        return { done: true };
+      case 'media_player.volume_set':
+        this.set(id, s.state, { volume_level: data.volume_level ?? 0.3 });
+
+        return { done: true };
       case 'media_player.media_next_track':
       case 'media_player.media_previous_track': {
         const now = DEMO_TRACKS.findIndex((t) => t.title === s.attributes.media_title);
@@ -426,7 +502,11 @@ class DemoHome {
 
         return { done: true };
       }
-      case 'media_player.shuffle_set': this.set(id, s.state, { shuffle: data.shuffle ?? false }); return { done: true };
+
+      case 'media_player.shuffle_set':
+        this.set(id, s.state, { shuffle: data.shuffle ?? false });
+
+        return { done: true };
       case 'music_assistant.get_queue': {
         const now = DEMO_TRACKS.findIndex((t) => t.title === s.attributes.media_title);
         const item = (i: number) => {
@@ -437,20 +517,34 @@ class DemoHome {
 
         return { response: { [id]: { queue_id: id, items: 14, current_index: 3, shuffle_enabled: !!s.attributes.shuffle, repeat_mode: 'off', current_item: now < 0 ? null : item(now), next_item: now < 0 ? null : item(now + 1) } } };
       }
+
       case 'media_player.join': {
         // Like Music Assistant: the leader and every member list the whole group.
         const group = [...new Set([id, ...(s.attributes.group_members ?? []), ...(data.group_members ?? [])])];
-        for (const m of group) { const e = this.states.get(m); if (e) this.set(m, e.state, { group_members: group }); }
+
+        for (const m of group) {
+          const e = this.states.get(m);
+
+          if (e) this.set(m, e.state, { group_members: group });
+        }
 
         return { done: true };
       }
+
       case 'media_player.unjoin': {
         const rest = (s.attributes.group_members ?? []).filter((m) => m !== id);
-        for (const m of rest) { const e = this.states.get(m); if (e) this.set(m, e.state, { group_members: rest.length > 1 ? rest : [] }); }
+
+        for (const m of rest) {
+          const e = this.states.get(m);
+
+          if (e) this.set(m, e.state, { group_members: rest.length > 1 ? rest : [] });
+        }
+
         this.set(id, s.state, { group_members: [] });
 
         return { done: true };
       }
+
       case 'media_player.play_media': {
         const [, attrs] = speaker('playing', 0, s.attributes.volume_level ?? 0.3);
         const name = DEMO_PLAYLISTS[Number((data.media_content_id ?? '').split('/')[1]) || 0];
@@ -458,6 +552,7 @@ class DemoHome {
 
         return { done: true };
       }
+
       case 'light.turn_on': {
         const pct = data.brightness_pct ?? this.lastBrightness.get(id) ?? 100;
         const dims = s.attributes.supported_color_modes?.includes('brightness');
@@ -479,12 +574,23 @@ class DemoHome {
       case 'cover.close_cover': {
         const opening = call.service === 'open_cover';
         this.set(id, opening ? 'opening' : 'closing');
-        window.setTimeout(() => this.set(id, opening ? 'open' : 'closed'), 4000);
+        window.clearTimeout(this.moving.get(id));
+        this.moving.set(id, window.setTimeout(() => this.set(id, opening ? 'open' : 'closed'), 4000));
 
         // The garage door's open/closed sensor follows the door.
         if (id === 'cover.garage_door') this.set('binary_sensor.garage_door', opening ? 'on' : 'off');
         break;
       }
+
+      // Stopped part-way, a cover reports itself open (as Home Assistant does).
+      case 'cover.stop_cover':
+        window.clearTimeout(this.moving.get(id));
+        if (s.state === 'opening' || s.state === 'closing') this.set(id, 'open');
+        break;
+
+      case 'scene.turn_on':
+        this.set(id, new Date().toISOString());
+        break;
 
       case 'select.select_option':
         if (data.option) this.set(id, data.option);
@@ -564,6 +670,9 @@ export function startDemo(): void {
   // The example home, with the doorbell window on (for ctDemo.ring) and no backgrounds from Home Assistant.
   const config = decodeConfig(exampleConfig);
   settings.config = { ...config, doorbell: { ...config.doorbell, window: true }, backgrounds: undefined, sky: config.sky ?? {} };
+
+  // ?demo&areas: no "rooms", so they're built from the demo's Areas (see demoRegistry).
+  if (new URLSearchParams(location.search).has('areas')) settings.config = { ...settings.config, rooms: undefined };
   settings.source = 'demo';
   settings.error = '';
   settings.haUrl = 'http://homeassistant.local:8123';
@@ -581,7 +690,8 @@ export function startDemo(): void {
 
   ha.useDemo(home.link, (fn) => home.subscribe(fn));
 
-  showRemote();
+  // Dashboard mode is made for touch, so it needs no on-screen remote.
+  if (!dashboardMode) showRemote();
 
   window.ctDemo = {
     caption,

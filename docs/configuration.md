@@ -8,24 +8,40 @@ The TypeScript definition, which is the source of truth, is `CalmTvConfig` in [`
 
 Each time Calm TV starts, it looks in this order:
 
-1. **Home Assistant's `www` folder**, served at `http://<ha>/local/calm-tv.json`.
+1. **Kept in Home Assistant** (Home Assistant 2025.x or newer). Once you're happy with your
+   calm-tv.json, open Settings → Home Assistant → **Home setup** → **Keep it in Home Assistant**,
+   signed in as a Home Assistant **admin**: in Calm TV's dashboard (see dashboard.md) or the browser
+   preview. It's copied into Home Assistant's own storage, where only signed-in users can read it,
+   and it's part of Home Assistant's backups. Every TV and dashboard switches to it at once, and
+   any later change reaches them the same way. Then you can delete the public file from `www`.
+   - To change it: Home setup → **Edit**, in the dashboard or a browser, signed in as an admin.
+     **Screens & rooms** turns screens on and off and orders them, and switches rooms between
+     "From my areas" and "My own list". Your own list starts from your areas, and its rooms can be
+     reordered, renamed, removed or added from an area. **Text** is the whole setup as JSON, checked
+     as you type: a mistake is named before anything is saved, and entity ids Home Assistant
+     doesn't have are pointed out. **Save** keeps it in Home Assistant, and every TV and dashboard
+     follows. (An edited calm-tv.json in `www` with **Copy calm-tv.json again** still works too.)
+   - **Back to calm-tv.json** removes the copy from Home Assistant (two presses). Without a file in
+     `www`, the setup is gone, so keep a copy.
+   - The TV's own Home Assistant user doesn't need to be an admin: it only reads the copy.
+2. **Home Assistant's `www` folder**, served at `http://<ha>/local/calm-tv.json`.
    *This is the recommended place.* Edit the file in Home Assistant, for example with the
    **File editor** or **Studio Code Server** add-on, then reopen Calm TV or choose
-   Settings → Home setup → OK. No computer, no rebuild.
+   Settings → Home Assistant → Home setup → In use. No computer, no rebuild.
    - Create the folder `/config/www/` if it doesn't exist. Home Assistant only serves `/local/` after
      a **restart** that happens once `www` exists.
    - Files in `www` can be read by anyone on your network without signing in. This file only
      names entities, but don't put anything secret in it.
-2. **A file on the TV**, pushed from a computer:
+3. **A file on the TV**, pushed from a computer:
    ```bash
    adb push calm-tv.json /sdcard/Android/data/io.github.neocarlos.hacalmtv/files/calm-tv.json
    ```
    Open Calm TV once first, so that folder exists. This is handy before you've set up a way to edit
    Home Assistant's files.
-3. **The last copy that worked**, kept by the app. A typo in the newest file, or Home Assistant
+4. **The last copy that worked**, kept by the app. A typo in the newest file, or Home Assistant
    being down at start-up, won't blank the screen.
 
-Settings → **Home setup** shows which source was used, how many rooms it has, and any error, such as
+Settings → Home Assistant → **Home setup** shows which source was used, how many rooms it has, and any error, such as
 `room "Kitchen" needs "groups": [ … ]`.
 
 In the **desktop browser preview** (`npm run dev`), the file is read from the project folder
@@ -47,13 +63,18 @@ default app dock.
   "calendar": { "events": "calendar.family", "meals": "calendar.meal_plan" },
   "doorbell": { "window": false, "camera": "camera.front_door", "ringing": "input_boolean.doorbell_ringing" },
   "rooms": [ … ],         // the Smart Home bar
-  "display": { "glass": "blur", "videos": true, "transitions": "fade" },
+  "display": { "glass": "blur", "videos": true, "transitions": "fade", "fade": true },
   "sky": { "sun": "sun.sun" },   // the living sky: time of day and weather on the background
   "backgrounds": { "photos": [ … ], "videos": [ … ] }
 }
 ```
 
 ### `apps`: the dock, in order
+
+The easiest way needs no JSON: on the TV, **Settings → Arrange dock → Choose apps** lists every app
+installed on the TV; OK adds one to the end of the dock or takes it off. **Move tiles** puts them in
+order. Both are kept on the TV, and **Back to calm-tv.json's dock** undoes them. `apps` sets the
+starting dock, for example on a TV you set up for someone else.
 
 ```json
 { "name": "Netflix", "icon": "netflix", "package": "com.netflix.ninja" }
@@ -73,7 +94,8 @@ default app dock.
     its path, e.g. `"icon": "/local/calm-tv/icons/moonlight.svg"` (or a full `https://` address).
     It's shown as a white silhouette like the built-in icons, so a one-colour logo on a transparent
     background works best. [Simple Icons](https://simpleicons.org) (CC0) has thousands.
-  - Without an icon, the tile shows the app's name.
+  - Without an icon: the built-in icon for that package if there is one, otherwise the app's own
+    Android icon in its colours, otherwise its name.
 - Apps that aren't installed on the TV are hidden automatically.
 - Leave `apps` out entirely for a default lineup of common streaming apps.
 
@@ -83,17 +105,19 @@ default app dock.
 "screens": ["apps", "smarthome", "weather"]
 ```
 
-- The four screens are `apps`, `smarthome`, `calendar` and `weather`. ↓ moves through them in the
-  order listed. This example has no Calendar.
+- The screens are `apps`, `smarthome`, `music`, `calendar` and `weather`. ↓ moves through them in
+  the order listed. This example has no Music or Calendar.
+- `music` shows only with a `music` section (below).
 - `apps` is always shown, and always first: it holds Settings. If you leave it out, it's added back.
 - A screen you leave out isn't loaded at all (no calendar or forecast requests).
-- Leave `screens` out for all four, in the order above.
+- Leave `screens` out for all of them, in the order above.
 
 ### `weather`
 
 A Home Assistant weather entity. **Open-Meteo** is recommended: it gives about 7 days of hourly
 forecast. Met.no, Home Assistant's default, only gives 48 hours, so the hour chart is empty from
-the third day on. Defaults to `weather.home`.
+the third day on. Defaults to `weather.home`. Its icon and temperature also sit beside the clock on the
+home screen.
 
 ### `calendar`
 
@@ -116,7 +140,7 @@ on, **even over other apps**. You need an automation that turns the input_boolea
 rings; see [home-assistant.md](home-assistant.md). Google TV already shows its own alert for Nest
 doorbells, so this is off by default.
 
-Three optional extras change how it appears:
+Four optional extras change how it appears:
 
 ```json
 { "window": true, "camera": "camera.front_door", "ringing": "input_boolean.doorbell_ringing",
@@ -138,7 +162,7 @@ never connects, the quick picture stays.
 While the window is over another app, **Back** closes it (and doesn't reach the app underneath).
 It also closes by itself when `ringing` turns off.
 
-### `music`: the Music panel
+### `music`: the Music screen
 
 ```json
 {
@@ -149,9 +173,10 @@ It also closes by itself when `ringing` turns off.
 }
 ```
 
-With `music` in the file, a **Music** tile appears at the end of the dock, next to Settings (or wherever an `apps` entry
-`{ "name": "Music", "open": "music" }` puts it). It opens a panel with what the chosen speaker is
-playing (art, title, progress), play/pause, previous/next, volume and grouping, the speakers, and
+With `music` in the file, a **Music** screen comes after Smart Home (see `screens`): the album art
+alone, and a frosted bar with the song, previous / play-pause / next and volume, which fades away
+after a few seconds without a key press. **More** opens the Music panel: what the chosen speaker is
+playing (art, title, progress), the controls and grouping, the speakers, and
 a row of library buttons (Artists, Albums, Tracks, Playlists, Radio, Podcasts, Audiobooks). Each button opens a grid you can browse
 into (an artist's albums, an album's tracks, with "Play all") and play from, on the chosen speaker. Made for **Music Assistant**, but it only uses Home
 Assistant's media player services and media browser, so other players work too.
@@ -160,8 +185,81 @@ Assistant's media player services and media browser, so other players work too.
 - `library`: which of the media browser's top folders get a button, by exact name, in this order.
   Default `["Artists", "Albums", "Tracks", "Playlists", "Radio", "Podcasts", "Audiobooks"]` (Music
   Assistant's), so Home Assistant's other media sources (cameras, text-to-speech…) stay out.
+- `background`: how the album's colour shows behind the Music screen. `"none"` (the default) leaves
+  your photo as it is, `"glow"` lights the background around the cover, `"wash"` washes the whole
+  screen in its colour, and `"solid"` puts the colour in place of your photo (like the Music panel).
+  Each TV can change it in **Settings → Appearance → Music background**.
+- `wave`: the thin wave under the time, with the part already played lit. It drifts while music
+  plays and lies flat when paused (it shows the song's progress, not the sound: the music never goes
+  through the TV). `true` by default; `false` hides it. Each TV can change it in
+  **Settings → Appearance → Music wave**.
+
+### `doors`: door pop-ups
+
+```json
+{
+  "entities": [
+    { "name": "Front door", "entity": "binary_sensor.front_door" },
+    { "name": "Back door", "entity": "binary_sensor.back_door" }
+  ]
+}
+```
+
+When one of these opens, a small pop-up with an open door and its name shows in the top-right
+corner for 5 seconds, **even over other apps**, without pausing anything. If the door is still open
+after `leftOpen` seconds (default 10), it comes back with a red **!** and "Left open", and stays
+until the door closes. Several doors stack. A door closing never pops up, and a sensor that
+flickers as the door shuts is ignored.
+
+Two limits: if a door's sensor drops out (unavailable) while "Left open" is up, the pop-up goes
+and only comes back the next time the door opens; and over other apps, "Left open" is taken down
+after 30 minutes, even if the door is still open, so a pop-up can never be stuck on screen.
+
+- `entities`: open/closed sensors (`on` = open). Doors only: windows would pop up all day.
+- `leftOpen`: seconds before "Left open" (at least 5).
+- `popup`: `false` turns the pop-ups off but keeps the doors in the ★ side panel.
+
+### The ★ side panel
+
+On a Google TV remote, the **★** button (it normally opens Google's own side panel) opens Calm TV's
+panel on the right, over whatever is playing. The show keeps playing. It lists, from this file:
+
+- **Climate**: every `climate` device. OK on one, then ↑ ↓ change the set point. A thermostat
+  holding a range (heat/cool) shows both: ← → pick Heat or Cool, OK opens it, ↑ ↓ change it.
+- **Doors**: the `doors` entities, open or closed.
+- **Each room's other open/closed sensors** (e.g. the garage doors). A sensor with `control` (a
+  `cover.*`) opens or closes that cover, never by accident: OK, then OK again on the same door, at
+  least half a second later and within 4 seconds, with no other key between. While the door is
+  moving, the same two presses stop it. If its state can't be read, it doesn't move, and if Home
+  Assistant refuses, the row says so.
+- **Music**: what's playing on the `music` speakers, with play/pause.
+- **Cameras**: snapshots every few seconds; OK shows one big and live.
+
+While it's open the arrows, OK and Back go to the panel; volume and play/pause still reach the
+show. **Back**, **★** or **Home** closes it, and it closes by itself after a minute untouched. Calm
+TV only takes over ★ once it has your Home Assistant's address; until then ★ opens Google's panel. Needs the
+Home button accessibility service (Settings → Accessibility → Calm TV), like the doorbell window.
 
 ### `rooms`: the Smart Home bar, in order
+
+**You can leave `rooms` out.** Then each of your Home Assistant **Areas** becomes a room, in floor
+order (and Home Assistant's own order within a floor), and rooms update when you change Areas in
+Home Assistant. A room holds what's useful from the couch:
+
+- **Lights, Plugs, Curtains & blinds, Climate, Locks, Cameras:** each device's main control (its
+  lamp, not a lamp's "Music mode" or "Segment 3"). Light groups are left out, since they repeat the
+  lamps in them. Garage doors and gates are left out too: a room panel moves a cover on one press
+  (the ★ panel's `control` asks for two).
+- **Doors & windows:** door, garage-door, window and opening sensors, as open or closed.
+- **Scenes:** the Area's scenes, as one scene picker. OK turns a scene on; the picker shows the one
+  turned on most recently.
+
+Tidy it in Home Assistant rather than here: move a device by changing its Area, rename it there,
+and leave something out by turning its entity's **Visible** switch off, or by giving the entity
+or its device the label **Hide in Calm TV**. An Area with nothing to show isn't a room.
+
+To choose the rooms yourself instead (combine Areas, pick devices, add a vacuum, an alert or a
+maintenance sensor), list them:
 
 ```jsonc
 {
@@ -194,10 +292,10 @@ Each device is `{ "type", "entity", "name" }` plus a few optional extras:
 | `switch` | `switch.*` (plugs) | On/off |
 | `cover` | `cover.*` | Open/close curtains or blinds. Optional `"batteries": ["sensor.…"]` shows the lowest |
 | `climate` | `climate.*` | Thermostat with set point. The first one in any room is also shown large on the Smart Home screen |
-| `scene` | `select.*` whose options are scenes (e.g. from the Hue integration) | A scene picker |
+| `scene` | `select.*` whose options are scenes (e.g. from the Hue integration), or a list of scenes: `"scenes": ["scene.office_bright", "scene.office_relax"]` with any `entity` name, like `"scenes.office"` | A scene picker |
 | `camera` | `camera.*` that supports WebRTC (Nest, go2rtc, most modern integrations) | Live video |
 | `lock` | `lock.*` | **Status only**, like "Locked (Keypad) · 93% battery". Optional `batteries`, `operator` (a sensor saying how it was locked), `keypad` (a keypad battery sensor) |
-| `sensor` | `sensor.*` or `binary_sensor.*` | Status only: a value with its unit, Open/Closed, or "Someone there"/"Clear" for occupancy sensors |
+| `sensor` | `sensor.*` or `binary_sensor.*` | Status only: a value with its unit, Open/Closed, or "Someone there"/"Clear" for occupancy sensors. Optional `control`: a `cover.*` (e.g. the garage door this sensor watches) that the ★ side panel opens and closes |
 
 `name` defaults to the entity id. Entity ids are listed in Home Assistant under Settings → Devices &
 services → Entities.
@@ -217,8 +315,8 @@ services → Entities.
 { "glass": "blur", "videos": true, "transitions": "fade" }
 ```
 
-These are **defaults for every TV**. Each TV can override any of them in **Settings → Performance**,
-whose rows say whether a value is the default, from calm-tv.json, or set on this TV. *Reset to calm-tv.json* there undoes a
+These are **defaults for every TV**. Each TV can override any of them in **Settings → Appearance**
+(`glass` and `transitions` together, as *Visual effects*), whose rows say whether a value is the default, from calm-tv.json, or set on this TV. *Reset to calm-tv.json* there undoes a
 TV's own changes.
 
 - `glass`: how the bars along the bottom look.
@@ -226,11 +324,15 @@ TV's own changes.
     free, because the blur is pre-computed. Over a video it's a live blur, which costs a few frames per
     second while switching screens on a TV.
   - `"tint"`: plain dark glass with no blur. The lightest option, and the same darkness as the frosted bars.
-- `videos`: `true` (the default) shows a looping video background, and Settings → Background offers
+- `videos`: `true` (the default) shows a looping video background, and Settings → Appearance → Background offers
   videos; `false` shows a photo, and the picker offers photos. Each kind remembers its own choice,
   so turning videos off and on again returns to the same clip.
 - `transitions`: how screens change. `"fade"` (the default) cross-fades; `"instant"` switches with no
   animation, the lightest option on slow devices.
+- `fade`: `true` (the default) lets the screens rest. After 8 seconds without a key press, every
+  screen's bar fades away and only the essentials stay: the clock, the weather, the album art. The
+  first key (or tap) only brings the bar back, so ↑ or OK never does anything by accident. `false`
+  keeps the bars up (Settings → Appearance → *Fade when idle*).
 
 ### `sky`: the living sky
 
@@ -287,7 +389,7 @@ With [`sky`](#sky-the-living-sky), each can also have `"dawn"`, `"dusk"` and `"n
 `{ "name": "Our beach", "url": "/local/calm-tv/beach.jpg", "night": "/local/calm-tv/beach-night.jpg" }`.
 
 Paths starting with `/` are on Home Assistant (its `www` folder is `/local/`). Full `http(s)://`
-addresses also work. They're added after the built-in backgrounds in Settings → Background.
+addresses also work. They're added after the built-in backgrounds in Settings → Appearance → Background.
 
 - **Photos:** about 2560 px wide and landscape.
 - **Videos:** 1080p H.264 MP4, no audio, ideally under 20 MB, made with the `ffmpeg` command in
@@ -296,9 +398,9 @@ addresses also work. They're added after the built-in backgrounds in Settings �
 
 ## After editing
 
-- **File in Home Assistant:** reopen Calm TV, or Settings → Home setup → OK.
+- **File in Home Assistant:** reopen Calm TV, or Settings → Home Assistant → Home setup → In use.
 - **File on the TV:** push it again, then reopen Calm TV.
 - **Browser preview:** just reload the page.
 
-If something doesn't show, check Settings → Home setup for an error, and make sure each entity id
+If something doesn't show, check Settings → Home Assistant → Home setup for an error, and make sure each entity id
 exists in Home Assistant. A device whose entity doesn't exist shows "Unavailable".

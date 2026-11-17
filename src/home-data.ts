@@ -19,8 +19,11 @@ const zi = {
   house: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6 8 6"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg>`,
 };
 
-// ---------- rooms and devices, from calm-tv.json (see config.ts) ----------
+// ---------- rooms and devices, from calm-tv.json (see config.ts) or Home Assistant's Areas ----------
 const ICONS: Record<RoomIcon, string> = zi;
+
+/** A room icon's drawing, by name (rooms from Areas pick theirs in areas.ts). */
+export const roomIcon = (name: RoomIcon): string => ICONS[name];
 
 function device(d: DeviceConfig): Device {
   return {
@@ -31,11 +34,28 @@ function device(d: DeviceConfig): Device {
     operator: d.operator,
     keypad: d.keypad,
     control: d.control,
+    scenes: d.scenes,
   };
 }
 
-function room(r: RoomConfig): Zone {
-  const groups = r.groups.map((g) => ({ title: g.title, devices: g.devices.map(device) }));
+/** "master bedroom" → "Master bedroom". */
+const capFirst = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
+/** An entity's shown name: its friendly name, without the room's name in front ("Office Desk" → "Desk"). */
+export function shortName(s: HassEntity | undefined, id: string, room: string): string {
+  // Home Assistant always gives a friendly name; failing that, the id: "light.office_desk" → "office desk".
+  const full = (typeof s?.attributes.friendly_name === 'string' ? s.attributes.friendly_name : id.split('.')[1].replace(/_/g, ' ')).trim();
+  const rest = room && full.toLowerCase().startsWith(room.toLowerCase()) ? full.slice(room.length).replace(/^[\s:·–-]+/, '') : full;
+
+  return capFirst((rest || full).trim());
+}
+
+/** A room from its setup (calm-tv.json's "rooms", or built from an Area, areas.ts). */
+export function zoneFrom(r: RoomConfig): Zone {
+  const groups = r.groups.map((g) => ({
+    title: g.title,
+    devices: g.devices.map((d) => ({ ...device(d), ...(d.scenes ? { room: r.name } : {}) })),
+  }));
   const all = groups.flatMap((g) => g.devices);
   // A room's locks are the same rows as in its groups when listed there (so they share live state).
   const locks = (r.locks ?? []).map((id) => all.find((d) => d.entity === id) ?? device({ type: 'lock', entity: id }));
@@ -52,15 +72,36 @@ function room(r: RoomConfig): Zone {
   };
 }
 
-/** The rooms in the Smart Home bar (empty until calm-tv.json lists some). */
+/** The rooms in the Smart Home bar: from calm-tv.json's "rooms", or else from Home Assistant's Areas once connected. */
 export let zones: Zone[] = [];
+
+/** Where the rooms come from: calm-tv.json's "rooms", or (without them) Home Assistant's Areas. */
+export let roomsFrom: 'config' | 'areas' = 'config';
+
+/** Why rooms couldn't be built from Areas ("" when fine, or before trying). */
+export let areasProblem = '';
+
+const zoneListeners: (() => void)[] = [];
+
+/** Runs when the rooms change (rooms from Areas arrive, or are rebuilt on reconnecting). */
+export function onZonesChange(fn: () => void): void {
+  zoneListeners.push(fn);
+}
+
+/** Replaces the rooms (from Areas), or records why they couldn't be built. */
+export function setAreaRooms(rooms: Zone[], problem = ''): void {
+  zones = rooms;
+  areasProblem = problem;
+  zoneListeners.forEach((fn) => fn());
+}
 
 /** Weather entity (Open-Meteo recommended: ~7 days of hourly forecast). */
 export let WEATHER = 'weather.home';
 
 /** Builds the rooms from the loaded configuration. Call after loadConfig(). */
 export function loadHome(): void {
-  zones = (settings.config.rooms ?? []).map(room);
+  roomsFrom = settings.config.rooms ? 'config' : 'areas';
+  zones = (settings.config.rooms ?? []).map(zoneFrom);
   WEATHER = settings.config.weather ?? 'weather.home';
 }
 
@@ -82,6 +123,12 @@ function minBattery(ents: HassEntities, ids: string[] = []): number | undefined 
 }
 
 function applyDevice(d: Device, ents: HassEntities): void {
+  if (d.scenes) {
+    applySceneList(d, ents);
+
+    return;
+  }
+
   const s = ents[d.entity];
   d.unavailable = !s || s.state === 'unavailable';
 
@@ -194,6 +241,42 @@ function vacuumProblems(ents: HassEntities, v: NonNullable<Zone['vacuum']>): str
   if (dErr && !['ok', 'unknown', 'unavailable'].includes(dErr)) out.push(`dock: ${dErr.replace(/_/g, ' ')}`);
 
   return out;
+}
+
+/**
+ * A scene picker built from an Area's scenes: the choices are the scenes that still exist, and the
+ * picked one is the scene turned on most recently (a scene's state is when it was last turned on).
+ */
+function applySceneList(d: Device, ents: HassEntities): void {
+  // Their names, in the same order (a scene renamed in Home Assistant shows its new name).
+  d.options = (d.scenes ?? []).map((id) => shortName(ents[id], id, d.room ?? ''));
+  const live = (d.scenes ?? []).filter((id) => ents[id] && ents[id].state !== 'unavailable');
+  d.unavailable = !live.length;
+
+  if (d.unavailable) {
+    d.status = 'Unavailable';
+
+    return;
+  }
+
+  let latest = '';
+  let latestAt = 0;
+
+  for (const id of live) {
+    const at = Date.parse(ents[id].state);
+
+    if (at > latestAt) {
+      latestAt = at;
+      latest = id;
+    }
+  }
+
+  if (!((d.holdUntil ?? 0) > Date.now())) {
+    const i = d.scenes?.indexOf(latest) ?? -1;
+    d.picked = i >= 0 ? d.options?.[i] : undefined;
+  }
+
+  d.status = d.picked ?? 'Choose a scene';
 }
 
 /** Copy Home Assistant's latest states into every room and device. */

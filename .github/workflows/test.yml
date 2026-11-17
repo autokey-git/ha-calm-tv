@@ -1,0 +1,27 @@
+# Type-checks the app and drives the demo with the remote (as on the TV) and with taps (as on the
+# Home Assistant dashboard); see scripts/smoke-test.mjs. A pull request that breaks either fails here.
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # ubuntu-latest comes with Google Chrome.
+      - run: npm test

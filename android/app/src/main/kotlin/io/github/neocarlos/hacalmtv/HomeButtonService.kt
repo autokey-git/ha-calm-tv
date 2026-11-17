@@ -96,8 +96,9 @@ class HomeButtonService : AccessibilityService() {
             if (event.action == KeyEvent.ACTION_UP) bell.close()
             return true
         }
-        // ★ opens and closes the Home Assistant side panel (instead of Google's own side panel).
-        if (event.keyCode == KeyEvent.KEYCODE_MACRO_1) {
+        // ★ opens and closes the Home Assistant side panel instead of Google's own, once Calm TV knows
+        // your Home Assistant (before that, ★ still opens Google's side panel).
+        if (event.keyCode == KeyEvent.KEYCODE_MACRO_1 && Prefs.haUrl(this).isNotEmpty()) {
             if (event.action == KeyEvent.ACTION_UP) toggleSidePanel()
             return true
         }
@@ -110,12 +111,17 @@ class HomeButtonService : AccessibilityService() {
                 panelKeys.add(event.keyCode)
                 return true
             }
+            // The rest of a held press that went to the panel stays with it, even once that press
+            // (Back) has closed the panel; otherwise its repeats would reach the app underneath.
+            if (event.repeatCount > 0 && event.keyCode in panelKeys) return true
         } else if (event.action == KeyEvent.ACTION_UP && panelKeys.remove(event.keyCode)) {
             side?.key(event)
             return true
         }
+        // Home always closes the panel, also when it then goes to Google's home screen (below, it
+        // isn't taken), where the panel would otherwise stay on top and keep taking the arrows.
+        if (event.keyCode == KeyEvent.KEYCODE_HOME) side?.close()
         if (event.keyCode == KeyEvent.KEYCODE_HOME && !Prefs.usingGoogleHome(this)) {
-            side?.close()
             if (event.action == KeyEvent.ACTION_UP) showCalmTv("home key")
             return true
         }

@@ -1,6 +1,7 @@
 import type { Section } from './section';
 import type { ForecastEntry } from '../ha-data';
 import { child } from '../dom';
+import { slideRow } from '../row-scroll';
 
 const WW = 180;
 const WPITCH = 192;
@@ -280,7 +281,7 @@ export class WeatherSection implements Section {
       else if (canRight) this.shelf.classList.add('fade-r');
     }
 
-    this.track.style.transform = `translateX(${tx}px)`;
+    slideRow(this.shelf, this.track, tx, this.cards[i]);
   }
 
   focus(i: number): void {

@@ -13,9 +13,11 @@
     "build:site": "tsc && VITE_DEMO_SITE=1 vite build",
     "build:android": "tsc && vite build --outDir android/app/src/main/assets/web --emptyOutDir",
     "tv:install": "npm run build:android && cd android && ./gradlew installDebug -q",
+    "publish:ha": "node scripts/publish-ha.mjs",
     "tv:apk": "npm run build:android && cd android && ./gradlew assembleDebug -q && echo android/app/build/outputs/apk/debug/app-debug.apk",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit && node scripts/smoke-test.mjs",
     "record:demo": "node scripts/record-demo.mjs"
   },
   "devDependencies": {

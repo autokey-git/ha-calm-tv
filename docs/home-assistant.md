@@ -36,7 +36,7 @@ Settings → **Home Assistant** → OK. HA's own login page opens, and you sign 
 | Dinner line | A calendar whose all-day events are meals ("Dinner: Tacos") | Optional |
 | Cameras | `camera.*` with **WebRTC** support | Nest cameras (Google Nest integration) work. RTSP cameras work through HA's built-in go2rtc. Cameras that only offer snapshots/MJPEG don't play yet |
 | Scenes | A `select.*` entity whose options are scene names | Some integrations create these per room. Picking one calls `select.select_option` |
-| Locks | `lock.*`, plus optional battery/operator sensors | Status only by design |
+| Locks | `lock.*`, plus optional battery/operator sensors | Status only, for now |
 | Vacuum | Roborock-style sensors | Optional |
 | Maintenance notes | A text `sensor.*` per room | Optional; see the template example below |
 | Doorbell window | A doorbell camera + an `input_boolean` + an automation | Optional; see below |
@@ -92,16 +92,8 @@ Calm TV watches an `input_boolean` that is on while someone is at the door:
 
 Google TV already pops up its own alert for Nest doorbells; you may prefer to keep only one.
 
-**Reolink doorbells** have a **visitor** binary sensor that turns on when the button is pressed
-(for example `binary_sensor.front_door_visitor`). Use it as the trigger instead:
-
-```yaml
-triggers:
-  - trigger: state
-    entity_id: binary_sensor.front_door_visitor
-    from: "off"
-    to: "on"
-```
+For a **Reolink** doorbell, the trigger is its **visitor** binary sensor instead;
+[doorbell-and-music.md](doorbell-and-music.md) has that automation.
 
 ## 6. Maintenance notes (optional)
 
