@@ -72,6 +72,8 @@
   Performance, and Background moves into it). **Visual effects** switches frosted glass and screen
   fades together; calm-tv.json's `display` can still set them apart. The menu is more compact, and
   scrolls if it ever gets taller than the screen.
+- **Phone remotes:** Bookmark does what ★ does (opens the side panel), and Settings opens Calm TV's own
+  Settings, so a phone remote (Home Assistant's Android TV Remote, which can't send ★) reaches both.
 - **Living sky:** with `"sky"` in calm-tv.json the background follows the sun (warmer dawn and dusk, a
   darker, bluer night with stars) and draws the weather over it: rain and pouring rain, snow with depth, fog, cloud cover and lightning
   bolts. A scene map (`map` in `backgrounds`) adds ripples on the water, clouds mirrored in it and snow settling on the ground. Backgrounds can also come in dawn/day/dusk/night versions (`NN-name.night.jpg`).

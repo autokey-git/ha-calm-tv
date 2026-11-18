@@ -92,6 +92,10 @@ class MainActivity : Activity() {
             web.loadUrl(startUrl.toString())
             return
         }
+        if (intent.getBooleanExtra(KEY_OPEN_SETTINGS, false)) {
+            js("window.dispatchEvent(new Event('ct-settings'))")
+            return
+        }
         js("window.dispatchEvent(new Event('ct-home'))")
     }
 
@@ -278,6 +282,8 @@ class MainActivity : Activity() {
         private const val KEY_DEMO = "demo"
         private const val KEY_MA_TOKEN = "maToken"
         private const val KEY_MA_URL = "maUrl"
+        /** Set by the Home button service when a phone remote sends Settings: open Calm TV's Settings. */
+        const val KEY_OPEN_SETTINGS = "openSettings"
         const val BUNDLED_URL = "http://appassets.androidplatform.net/assets/web/index.html"
         /** The largest album art passed through to the page (5 MB). */
         private const val MAX_ART = 5L * 1024 * 1024

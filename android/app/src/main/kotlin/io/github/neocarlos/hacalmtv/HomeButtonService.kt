@@ -98,7 +98,10 @@ class HomeButtonService : AccessibilityService() {
         }
         // ★ opens and closes the Home Assistant side panel instead of Google's own, once Calm TV knows
         // your Home Assistant (before that, ★ still opens Google's side panel).
-        if (event.keyCode == KeyEvent.KEYCODE_MACRO_1 && Prefs.haUrl(this).isNotEmpty()) {
+        // Bookmark does the same: phone remotes (Home Assistant's Android TV Remote) can't send ★.
+        if ((event.keyCode == KeyEvent.KEYCODE_MACRO_1 || event.keyCode == KeyEvent.KEYCODE_BOOKMARK) &&
+            Prefs.haUrl(this).isNotEmpty()
+        ) {
             if (event.action == KeyEvent.ACTION_UP) toggleSidePanel()
             return true
         }
@@ -121,6 +124,12 @@ class HomeButtonService : AccessibilityService() {
         // Home always closes the panel, also when it then goes to Google's home screen (below, it
         // isn't taken), where the panel would otherwise stay on top and keep taking the arrows.
         if (event.keyCode == KeyEvent.KEYCODE_HOME) side?.close()
+        // Settings (sent by phone remotes) opens Calm TV's own Settings while Calm TV is the home screen.
+        if (event.keyCode == KeyEvent.KEYCODE_SETTINGS && !Prefs.usingGoogleHome(this)) {
+            side?.close()
+            if (event.action == KeyEvent.ACTION_UP) showCalmTv("settings key", openSettings = true)
+            return true
+        }
         if (event.keyCode == KeyEvent.KEYCODE_HOME && !Prefs.usingGoogleHome(this)) {
             if (event.action == KeyEvent.ACTION_UP) showCalmTv("home key")
             return true
@@ -142,11 +151,12 @@ class HomeButtonService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    private fun showCalmTv(reason: String) {
+    private fun showCalmTv(reason: String, openSettings: Boolean = false) {
         Log.i(TAG, "Showing Calm TV ($reason)")
         startActivity(
             Intent(this, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                .apply { if (openSettings) putExtra(MainActivity.KEY_OPEN_SETTINGS, true) }
         )
     }
 

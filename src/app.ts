@@ -640,6 +640,8 @@ export class CalmTv {
 
     // From the TV app: Home pressed (back to the app dock), and returning from another app.
     window.addEventListener('ct-home', () => { this.stir(); this.goHome(); });
+    // A phone remote's Settings key (the Home button service brings Calm TV forward): its Settings.
+    window.addEventListener('ct-settings', () => { this.stir(); this.closePanels(); this.settings.show(); });
 
     // Dev only: try the doorbell window without anyone ringing.
     if (import.meta.env.DEV) {
