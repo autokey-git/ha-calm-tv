@@ -98,8 +98,9 @@ class HomeButtonService : AccessibilityService() {
         }
         // ★ opens and closes the Home Assistant side panel instead of Google's own, once Calm TV knows
         // your Home Assistant (before that, ★ still opens Google's side panel).
-        // Bookmark does the same: phone remotes (Home Assistant's Android TV Remote) can't send ★.
-        if ((event.keyCode == KeyEvent.KEYCODE_MACRO_1 || event.keyCode == KeyEvent.KEYCODE_BOOKMARK) &&
+        // The blue key does the same: phone remotes (Home Assistant's Android TV Remote) can't send ★,
+        // and Google TV's virtual remote drops keys like Bookmark, but passes PROG_BLUE.
+        if ((event.keyCode == KeyEvent.KEYCODE_MACRO_1 || event.keyCode == KeyEvent.KEYCODE_PROG_BLUE) &&
             Prefs.haUrl(this).isNotEmpty()
         ) {
             if (event.action == KeyEvent.ACTION_UP) toggleSidePanel()
